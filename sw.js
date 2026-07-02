@@ -1,11 +1,14 @@
 /* Andor Archive — cache-first with background refresh */
-const CACHE = "andor-archive-v2";
+const CACHE = "andor-archive-v3";
 const ASSETS = [
   "./", "index.html", "sounds.js", "soundlab.html", "fonts/fonts.css",
   "fonts/BarlowCondensed-500.woff2", "fonts/BarlowCondensed-600.woff2", "fonts/BarlowCondensed-700.woff2",
   "fonts/IBMPlexMono-400.woff2", "fonts/IBMPlexMono-500.woff2", "fonts/IBMPlexMono-600.woff2",
   "fonts/Spectral-300.woff2", "fonts/Spectral-300-italic.woff2",
-  "fonts/Spectral-400.woff2", "fonts/Spectral-400-italic.woff2", "fonts/Spectral-600.woff2"
+  "fonts/Spectral-400.woff2", "fonts/Spectral-400-italic.woff2", "fonts/Spectral-600.woff2",
+  "assets/sfx/door_a.mp3", "assets/sfx/door_b.mp3", "assets/sfx/door_c.mp3",
+  "assets/sfx/confirm_a.mp3", "assets/sfx/confirm_b.mp3", "assets/sfx/confirm_c.mp3",
+  "assets/sfx/reject_a.mp3", "assets/sfx/reject_b.mp3", "assets/sfx/reject_c.mp3"
 ];
 
 self.addEventListener("install", e => {
