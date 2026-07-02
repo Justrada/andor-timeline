@@ -364,6 +364,7 @@ footer a{color:var(--steel)}
   transition:all .2s;backdrop-filter:blur(4px);
 }
 #jump button:hover{border-color:var(--amber);color:var(--amber)}
+#sndbtn.on{border-color:var(--green);color:var(--green);box-shadow:0 0 10px rgba(143,191,127,.3)}
 #jump button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 
 #shieldfab{
@@ -950,6 +951,7 @@ body.comparing #rail{top:34px}
         DATES USE THE BBY/ABY CALENDAR (BEFORE / AFTER THE BATTLE OF YAVIN) · SOME EARLY DATES ARE APPROXIMATE<br>
         YOUR PROGRESS IS STORED ONLY IN THIS BROWSER (LOCALSTORAGE) · NOTHING IS SENT ANYWHERE<br>
         SEALED TEXT NEVER ENTERS THE PAGE — FIND-IN-PAGE AND COPY CANNOT REVEAL IT<br>
+        INTERFACE AUDIO IS OFF BY DEFAULT · AUDITION &amp; A/B THE SOUND SET IN THE <a href="soundlab.html">SOUND LAB</a><br>
         SPOTTED AN ERROR OR HAVE INTEL TO ADD? <a href="https://github.com/Justrada/andor-timeline/issues/new?title=INTEL%20SUBMISSION&body=%2A%2AWhat%3A%2A%2A%20%0A%2A%2ASource%3A%2A%2A%20%0A%2A%2ASpoiler%20gate%20(latest%20episode%2Ffilm%20it%20touches)%3A%2A%2A%20" target="_blank" rel="noopener">SUBMIT INTEL VIA GITHUB</a>
         <div id="whisper" hidden></div>
       </footer>
@@ -961,6 +963,7 @@ body.comparing #rail{top:34px}
 <div id="jump" aria-label="Jump between eras">
   <button id="prevEra" title="Previous era" aria-label="Previous era">↑</button>
   <button id="nextEra" title="Next era" aria-label="Next era">↓</button>
+  <button id="sndbtn" title="Interface audio (configure in the Sound Lab)" aria-label="Toggle interface audio" aria-pressed="false">♪</button>
 </div>
 
 <button id="shieldfab" aria-label="Open spoiler shield settings">
@@ -1420,6 +1423,8 @@ MANIFESTO:[{"ep":5,"q":"Haven&rsquo;t titled it yet. I&rsquo;ve been waiting.","
 EXTRA_FACTS:[{"id":"sc1","tag":"SCORE","gate":{"ep":12},"p":"Nicholas Britell scored Season 1 with twelve different main-title arrangements — a new variation for every episode, shifting between synths, solo cello, and fuller band and orchestral settings as the season builds. Britell has described the design as 'a sense of discovery,' each week's titles keyed to where the story stands. Compare episode 1's opening to episode 12's and hear how far the theme has traveled."},{"id":"sc2","tag":"SCORE","gate":{"ep":12},"p":"The Ferrix funeral music in S1E12, 'Unto Stone We Are One,' is an original Britell composition: roughly eight minutes of diegetic music in three movements, performed on screen by the town's citizen band. It was the first piece Tony Gilroy and Britell built together, written before shooting began — Gilroy asked for something amateur and aspirational, a civic sound with clang and bang in it that could only exist on Ferrix."},{"id":"sc3","tag":"SCORE","gate":{"ep":15},"p":"'Niamos!' is the galaxy's in-universe pop hit — Britell's diegetic earworm, first heard around Cassian's resort hideaway in Season 1 and reworked in multiple official mixes. Listen for the EDM 'Chandrilian Club Mix' driving the wedding party in S2E3; Vanity Fair crowned it 2025's Song of Summer, and Gilroy has called the tune a 'galactic hit.'"},{"id":"sc4","tag":"SCORE","gate":{"ep":15},"p":"Season 2's score is primarily the work of Brandon Roberts, composing in deliberate continuity with Britell — Roberts has said he 'dove deep into his palette' so the handoff would not sound like a different hand, carrying Britell's established character themes forward while Britell returned in a limited capacity. Listen for Season 1's materials resurfacing under the new arcs rather than being replaced."},{"id":"sc5","tag":"SCORE","gate":{"ep":20},"p":"The Ghorman anthem 'We Are the Ghor' was written — words and melody — by Tony Gilroy and Nicholas Britell before Season 2 filming began, and is sung in the constructed Ghor language built on French phonetics. In S2E8 it rises from a single voice to hundreds across Palmo Plaza before the Empire opens fire; the piece went on to earn an Emmy nomination."}]
 };
 </script>
+
+<script src="sounds.js"></script>
 
 <script id="app">
 (function(){
@@ -1915,7 +1920,7 @@ $("#quizbox").addEventListener("click",e=>{
     if(bi===q.answer)b.classList.add("correct");
     else if(bi===oi)b.classList.add("wrong");
   });
-  if(oi===q.answer)s.score++;
+  if(oi===q.answer){s.score++;SND("confirm")}else SND("reject");
   const ex=$("#quizbox .qz-explain");
   ex.hidden=false;
   ex.innerHTML=`${oi===q.answer?"<b style='color:var(--green)'>CONFIRMED.</b> ":"<b style='color:var(--ember)'>INCORRECT.</b> "}${q.explain}
@@ -2093,14 +2098,16 @@ $$("#characters .chip").forEach(chip=>chip.addEventListener("click",()=>{
 }));
 
 /* ============================== INTERACTION ============================== */
+const SND=k=>{if(window.AndorSound)AndorSound.play(k)};
 function deny(card){
+  SND("reject");
   if(RM)return;
   card.classList.remove("denied");void card.offsetWidth;card.classList.add("denied");
   card.addEventListener("animationend",()=>card.classList.remove("denied"),{once:true});
 }
 let armedUnseal=null;
 function handleUnsealBtn(btn){
-  if(compare){toast("EXIT THE SHARED VIEW TO CHANGE YOUR OWN CLEARANCE");return}
+  if(compare){SND("reject");toast("EXIT THE SHARED VIEW TO CHANGE YOUR OWN CLEARANCE");return}
   if(armedUnseal!==btn){
     $$(".unsealbtn.armed").forEach(b=>{b.classList.remove("armed");b.textContent="I’VE WATCHED THIS FAR — UNSEAL"});
     armedUnseal=btn;btn.classList.add("armed");btn.textContent="TAP AGAIN TO SET CLEARANCE HERE";
@@ -2151,7 +2158,7 @@ pipHandler("#loggrid","sealedlog","");
 pipHandler("#qtcol","sealedqt","");
 pipHandler("#spbody",null,"");
 $("#markread").addEventListener("click",()=>{
-  baselineAll();renderAll();toast("ALL FILES MARKED AS READ");
+  baselineAll();renderAll();SND("confirm");toast("ALL FILES MARKED AS READ");
 });
 /* keyboard access for pip-clearing */
 document.addEventListener("keydown",e=>{
@@ -2336,6 +2343,7 @@ function commit(){
   unreadCursor=-1;
   const undoAction=first?null:{label:"UNDO",fn:()=>{state=prev;persist();justUnsealed=new Set();renderAll();toast("CLEARANCE RESTORED")}};
   const stampMsg=stampCrossings(oldEp,state.ep);
+  if(unsealedNow>0)SND("door");else SND("confirm");
   if(first)toast("CLEARANCE SET · <b>"+declassPct()+"% OF THE ARCHIVE DECLASSIFIED</b>");
   else if(unsealedNow>0)toast(stampMsg+"◈ <b>"+unsealedNow+" FILE"+(unsealedNow===1?"":"S")+" OF NEW INTEL DECLASSIFIED</b>",undoAction);
   else if(resealed>0)toast("CLEARANCE LOWERED · <b>FILES RE-SEALED</b>",undoAction);
@@ -2361,7 +2369,7 @@ $("#resetall").addEventListener("click",()=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&veil.classList.contains("show"))requestClose()});
 function advance(action){
-  if(compare){toast("EXIT THE SHARED VIEW TO CHANGE YOUR OWN CLEARANCE");return}
+  if(compare){SND("reject");toast("EXIT THE SHARED VIEW TO CHANGE YOUR OWN CLEARANCE");return}
   pending={ep:state.ep,movies:Object.assign({},state.movies)};
   if(action==="ep")pending.ep=Math.min(24,state.ep+1);else pending.movies[action]=true;
   commit();
@@ -2404,8 +2412,9 @@ $("#importinput").addEventListener("change",e=>{
       const s=JSON.parse(r.result);
       if(!s||typeof s!=="object"||Array.isArray(s))throw new Error("bad shape");
       state=normalize(s);persist();compare=null;closePanel();renderAll();
+      SND("confirm");
       toast("CLEARANCE IMPORTED · <b>"+declassPct()+"% DECLASSIFIED</b>");
-    }catch(err){toast("IMPORT FAILED — NOT A VALID CLEARANCE FILE")}
+    }catch(err){SND("reject");toast("IMPORT FAILED — NOT A VALID CLEARANCE FILE")}
   };
   r.readAsText(file);
   e.target.value="";
@@ -2486,6 +2495,7 @@ const SECTIONS=[
 
 /* sunrise finale */
 function showSunrise(){
+  SND("door");
   const sv=$("#sunriseveil");
   sv.classList.add("show");
   const sc=$("#scount");
@@ -2598,6 +2608,20 @@ $("#nextEra").addEventListener("click",()=>jump(1));
 $("#timeline").addEventListener("click",e=>{
   if(e.target.dataset&&e.target.dataset.act==="openpanel")openPanel();
 });
+
+/* ---------- interface audio toggle ---------- */
+(function(){
+  const b=$("#sndbtn");
+  if(!b||!window.AndorSound){if(b)b.style.display="none";return}
+  function paint(){b.classList.toggle("on",AndorSound.prefs.on);b.setAttribute("aria-pressed",AndorSound.prefs.on)}
+  b.addEventListener("click",()=>{
+    AndorSound.set("on",!AndorSound.prefs.on);
+    AndorSound.ensure();paint();
+    if(AndorSound.prefs.on){AndorSound.play("confirm");toast('INTERFACE AUDIO: <b>ON</b> · A/B THE SOUND SET IN THE <a href="soundlab.html" style="color:var(--green)">SOUND LAB</a>')}
+    else toast("INTERFACE AUDIO: <b>OFF</b>");
+  });
+  paint();
+})();
 
 /* ============================== BOOT ============================== */
 buildPanel();

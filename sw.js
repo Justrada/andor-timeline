@@ -1,7 +1,7 @@
 /* Andor Archive — cache-first with background refresh */
-const CACHE = "andor-archive-v1";
+const CACHE = "andor-archive-v2";
 const ASSETS = [
-  "./", "index.html", "fonts/fonts.css",
+  "./", "index.html", "sounds.js", "soundlab.html", "fonts/fonts.css",
   "fonts/BarlowCondensed-500.woff2", "fonts/BarlowCondensed-600.woff2", "fonts/BarlowCondensed-700.woff2",
   "fonts/IBMPlexMono-400.woff2", "fonts/IBMPlexMono-500.woff2", "fonts/IBMPlexMono-600.woff2",
   "fonts/Spectral-300.woff2", "fonts/Spectral-300-italic.woff2",

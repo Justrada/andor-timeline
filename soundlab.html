@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sound Lab — Andor · Countdown to the Sunrise</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0B0D12">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230B0D12'/%3E%3Cpath d='M50 16 84 50 50 84 16 50Z' fill='none' stroke='%23E39A3B' stroke-width='7'/%3E%3Cpath d='M50 38 62 50 50 62 38 50Z' fill='%23E39A3B'/%3E%3C/svg%3E">
+<link href="fonts/fonts.css" rel="stylesheet">
+<style>
+:root{
+  --void:#0B0D12;--hull:#151A26;--hull-2:#1B2130;--line:#2A3142;
+  --parchment:#EAE5D8;--ash:#98A0B0;--amber:#E39A3B;--amber-soft:rgba(227,154,59,.14);
+  --steel:#7FA6BF;--ember:#E2543E;--green:#8FBF7F;
+  --display:"Barlow Condensed",sans-serif;--body:"Spectral",Georgia,serif;--mono:"IBM Plex Mono",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--parchment);font-family:var(--body);font-weight:300;line-height:1.6;padding:8vh 20px 12vh}
+.wrap{max-width:720px;margin:0 auto}
+.kicker{font-family:var(--mono);font-size:.64rem;letter-spacing:.28em;color:var(--steel);margin-bottom:14px}
+h1{font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:clamp(2.4rem,7vw,3.6rem);line-height:.95}
+h1 span{color:var(--amber)}
+.lede{color:var(--ash);margin-top:16px;max-width:58ch;font-size:.98rem}
+.lede b{color:var(--parchment);font-weight:600}
+.master{
+  margin-top:30px;background:var(--hull);border:1px solid var(--line);border-left:3px solid var(--green);
+  border-radius:3px;padding:16px 18px;display:flex;flex-wrap:wrap;gap:18px;align-items:center;
+}
+.master label{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;color:var(--ash);display:flex;align-items:center;gap:10px;cursor:pointer}
+.master input[type=range]{accent-color:var(--amber);width:150px}
+.master .box{width:14px;height:14px;border:1.5px solid var(--ash);border-radius:2px;position:relative;flex:none}
+.master label.on{color:var(--green)}
+.master label.on .box{border-color:var(--green);background:var(--green)}
+.master label.on .box::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--void);font-size:.6rem;font-weight:600}
+.family{margin-top:38px}
+.family>.fh{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.family h2{font-family:var(--display);font-weight:600;text-transform:uppercase;font-size:1.7rem;letter-spacing:.02em}
+.family .use{font-family:var(--mono);font-size:.58rem;letter-spacing:.16em;color:var(--ash)}
+.variants{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:14px}
+.v{
+  background:var(--hull);border:1px solid var(--line);border-radius:3px;padding:14px 16px;cursor:pointer;
+  transition:border-color .2s;position:relative;
+}
+.v:hover{border-color:var(--ash)}
+.v.sel{border-color:var(--amber);background:var(--amber-soft)}
+.v .vk{font-family:var(--mono);font-size:.56rem;letter-spacing:.2em;color:var(--amber);display:flex;justify-content:space-between;gap:8px}
+.v .vn{font-family:var(--display);font-weight:600;font-size:1.2rem;text-transform:uppercase;letter-spacing:.02em;margin-top:4px}
+.v p{font-size:.82rem;color:var(--ash);margin-top:4px;line-height:1.45}
+.v .row{display:flex;gap:8px;margin-top:12px}
+.v button{
+  font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;cursor:pointer;border-radius:2px;padding:7px 12px;
+  border:1px solid var(--line);background:transparent;color:var(--parchment);transition:all .15s;text-transform:uppercase;
+}
+.v button:hover{border-color:var(--amber);color:var(--amber)}
+.v .sel-tag{display:none;font-family:var(--mono);font-size:.52rem;letter-spacing:.14em;color:var(--amber)}
+.v.sel .sel-tag{display:inline}
+.wired{margin-top:38px;border:1px dashed var(--line);border-radius:3px;padding:14px 18px;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;color:var(--ash);line-height:2.1}
+.wired b{color:var(--parchment);font-weight:600}
+a.back{
+  display:inline-block;margin-top:34px;font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;
+  color:var(--void);background:var(--amber);border-radius:2px;padding:11px 18px;text-decoration:none;font-weight:600;text-transform:uppercase;
+}
+footer{margin-top:44px;font-family:var(--mono);font-size:.56rem;letter-spacing:.14em;color:var(--ash);line-height:2}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">ANDOR · COUNTDOWN TO THE SUNRISE · AUDIO WORKSHOP</p>
+  <h1>Sound <span>Lab</span></h1>
+  <p class="lede">
+    Nine procedurally synthesized interface sounds — no samples, no downloads, nothing borrowed.
+    Audition each variant, pick one per family, and the archive uses your selection.
+    Choices save to this browser instantly. <b>Audio is off by default on the site</b> —
+    enable it below or with the ♪ button on the archive.
+  </p>
+
+  <div class="master">
+    <label id="enable"><span class="box"></span>INTERFACE AUDIO ON THE SITE</label>
+    <label>VOLUME <input type="range" id="vol" min="0" max="100" step="5"></label>
+    <button id="testall" style="font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--parchment);border-radius:2px;padding:8px 12px">▶ PLAY SELECTED SET</button>
+  </div>
+
+  <section class="family" data-kind="door">
+    <div class="fh"><h2>Declassify · Doors</h2><span class="use">PLAYS WHEN FILES UNSEAL &amp; AT THE SUNRISE</span></div>
+    <div class="variants">
+      <div class="v" data-v="A">
+        <div class="vk"><span>DOOR · A</span><span class="sel-tag">◈ IN USE</span></div>
+        <div class="vn">Blast Door</div>
+        <p>Pneumatic hiss sweeping down into a heavy pressure thunk. The archive opening its vault.</p>
+        <div class="row"><button data-play>▶ Play</button><button data-use>Use this</button></div>
+      </div>
+      <div class="v" data-v="B">
+        <div class="vk"><span>DOOR · B</span><span class="sel-tag">◈ IN USE</span></div>
+        <div class="vn">Iris Servo</div>
+        <p>A motor whine over a hiss bed, ending on a latch click. Lighter, faster, more mechanical.</p>
+        <div class="row"><button data-play>▶ Play</button><button data-use>Use this</button></div>
+      </div>
+      <div class="v" data-v="C">
+        <div class="vk"><span>DOOR · C</span><span class="sel-tag">◈ IN USE</span></div>
+        <div class="vn">Vault Seal</div>
+        <p>Sub-bass thump with a metallic ring-off and settling rumble. The heaviest of the three.</p>
+        <div class="row"><button data-play>▶ Play</button><button data-use>Use this</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="family" data-kind="confirm">
+    <div class="fh"><h2>Confirmation</h2><span class="use">SAVES · CORRECT ANSWERS · MARK AS READ</span></div>
+    <div class="variants">
+      <div class="v" data-v="A">
+        <div class="vk"><span>CONFIRM · A</span><span class="sel-tag">◈ IN USE</span></div>
+        <div class="vn">Ping-Ack</div>
+        <p>Two clean ascending tones, the second with a faint shimmer. Polite, official.</p>
+        <div class="row"><button data-play>▶ Play</button><button data-use>Use this</button></div>
+      </div>
+      <div class="v" data-v="B">
+        <div class="vk"><span>CONFIRM · B</span><span class="sel-tag">◈ IN USE</span></div>
+        <div class="vn">Data Chirp</div>
+        <p>One fast upward sweep — a readout resolving. The subtlest option.</p>
+        <div class="row"><button data-play>▶ Play</button><button data-use>Use this</button></div>
+      </div>
+      <div class="v" data-v="C">
+        <div class="vk"><span>CONFIRM · C</span><span class="sel-tag">◈ IN USE</span></div>
+        <div class="vn">Console Ack</div>
+        <p>Three tidy blips stepping upward. The most retro-terminal of the three.</p>
+        <div class="row"><button data-play>▶ Play</button><button data-use>Use this</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="family" data-kind="reject">
+    <div class="fh"><h2>Rejection</h2><span class="use">SEALED FILES · WRONG ANSWERS · BLOCKED ACTIONS</span></div>
+    <div class="variants">
+      <div class="v" data-v="A">
+        <div class="vk"><span>REJECT · A</span><span class="sel-tag">◈ IN USE</span></div>
+        <div class="vn">Denied Buzz</div>
+        <p>A low detuned buzz with tremolo. Classic access-denied energy.</p>
+        <div class="row"><button data-play>▶ Play</button><button data-use>Use this</button></div>
+      </div>
+      <div class="v" data-v="B">
+        <div class="vk"><span>REJECT · B</span><span class="sel-tag">◈ IN USE</span></div>
+        <div class="vn">Down-Tone</div>
+        <p>A falling two-layer sweep — the request simply dies. Less abrasive.</p>
+        <div class="row"><button data-play>▶ Play</button><button data-use>Use this</button></div>
+      </div>
+      <div class="v" data-v="C">
+        <div class="vk"><span>REJECT · C</span><span class="sel-tag">◈ IN USE</span></div>
+        <div class="vn">Double Negative</div>
+        <p>Two clipped nasal bursts: no. no. The most Imperial of the three.</p>
+        <div class="row"><button data-play>▶ Play</button><button data-use>Use this</button></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wired">
+    <b>WHERE THEY FIRE ON THE ARCHIVE:</b><br>
+    DOOR — new files declassifying · the sunrise finale<br>
+    CONFIRM — clearance saved · mark-all-read · correct exam answers · imports<br>
+    REJECT — tapping a sealed file · wrong exam answers · blocked actions
+  </div>
+
+  <a class="back" href="./">◈ Back to the archive</a>
+
+  <footer>
+    ALL NINE SOUNDS ARE SYNTHESIZED IN YOUR BROWSER AT PLAY TIME — NO AUDIO FILES, NO SAMPLES, NO LICENSES<br>
+    PREFERENCES ARE STORED ONLY IN THIS BROWSER
+  </footer>
+</div>
+
+<script src="sounds.js"></script>
+<script>
+(function(){
+  const S=window.AndorSound;
+  function refresh(){
+    document.querySelectorAll(".family").forEach(f=>{
+      const kind=f.dataset.kind;
+      f.querySelectorAll(".v").forEach(v=>v.classList.toggle("sel",S.prefs[kind]===v.dataset.v));
+    });
+    document.getElementById("enable").classList.toggle("on",S.prefs.on);
+    document.getElementById("vol").value=Math.round(S.prefs.vol*100);
+  }
+  document.querySelectorAll(".family").forEach(f=>{
+    const kind=f.dataset.kind;
+    f.addEventListener("click",e=>{
+      const v=e.target.closest(".v");if(!v)return;
+      if(e.target.matches("[data-play]")){S.playVariant(kind,v.dataset.v);return}
+      if(e.target.matches("[data-use]")||!e.target.closest("button")){
+        S.set(kind,v.dataset.v);refresh();S.playVariant(kind,v.dataset.v);
+      }
+    });
+  });
+  document.getElementById("enable").addEventListener("click",()=>{
+    S.set("on",!S.prefs.on);refresh();
+    if(S.prefs.on)S.playVariant("confirm",S.prefs.confirm);
+  });
+  document.getElementById("vol").addEventListener("input",e=>{
+    S.set("vol",(+e.target.value)/100);
+  });
+  document.getElementById("vol").addEventListener("change",()=>S.playVariant("confirm",S.prefs.confirm));
+  document.getElementById("testall").addEventListener("click",()=>{
+    S.playVariant("door",S.prefs.door);
+    setTimeout(()=>S.playVariant("confirm",S.prefs.confirm),1100);
+    setTimeout(()=>S.playVariant("reject",S.prefs.reject),1700);
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>
