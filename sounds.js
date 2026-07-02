@@ -22,18 +22,24 @@ window.AndorSound = (function () {
     reject:  { A: "assets/sfx/reject_a.mp3",  B: "assets/sfx/reject_b.mp3",  C: "assets/sfx/reject_c.mp3" },
   };
 
+  /* v2: locked-in default set — door A (Pneumatic Airlock), confirm C
+     (Sweet Accept), reject B (Harsh Denial). Bumping the version resets
+     variant picks to the new defaults while keeping on/vol. */
+  const V = 2;
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || "{}");
+      const fresh = s.v !== V;
       return {
+        v: V,
         on: !!s.on,
         vol: Number.isFinite(+s.vol) ? Math.min(1, Math.max(0, +s.vol)) : 0.55,
-        door: ["A", "B", "C"].includes(s.door) ? s.door : "A",
-        confirm: ["A", "B", "C"].includes(s.confirm) ? s.confirm : "A",
-        reject: ["A", "B", "C"].includes(s.reject) ? s.reject : "A",
+        door: !fresh && ["A", "B", "C"].includes(s.door) ? s.door : "A",
+        confirm: !fresh && ["A", "B", "C"].includes(s.confirm) ? s.confirm : "C",
+        reject: !fresh && ["A", "B", "C"].includes(s.reject) ? s.reject : "B",
       };
     } catch (e) {
-      return { on: false, vol: 0.55, door: "A", confirm: "A", reject: "A" };
+      return { v: V, on: false, vol: 0.55, door: "A", confirm: "C", reject: "B" };
     }
   }
   const prefs = load();

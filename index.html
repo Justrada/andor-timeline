@@ -635,18 +635,18 @@ body.comparing #rail{top:34px}
 /* ---------- sunrise finale ---------- */
 #sunriseveil{
   position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;text-align:center;
-  background:radial-gradient(ellipse 140% 90% at 50% 120%, #E39A3B 0%, #E2543E 30%, #341b28 62%, var(--void) 90%);
+  background:radial-gradient(ellipse 150% 95% at 50% 105%, #FFDA9E 0%, #F4B75A 18%, #E39A3B 34%, #E2543E 55%, #47202e 80%, var(--void) 100%);
   padding:24px;
 }
 #sunriseveil.show{display:flex;animation:dawnrise 2.2s ease}
 @keyframes dawnrise{from{opacity:0}to{opacity:1}}
 #sunriseveil .inner{max-width:520px}
-#sunriseveil .s-count{font-family:var(--display);font-weight:700;font-size:6rem;line-height:1;color:var(--void);text-shadow:0 0 30px rgba(255,220,150,.5)}
-#sunriseveil .s-quote{font-style:italic;font-size:1.2rem;color:var(--void);margin-top:18px;line-height:1.6;font-weight:400}
-#sunriseveil .s-quote b{font-style:normal;font-weight:600}
-#sunriseveil .s-k{font-family:var(--mono);font-size:.62rem;letter-spacing:.3em;color:rgba(11,13,18,.75);margin-bottom:14px}
+#sunriseveil .s-count{font-family:var(--display);font-weight:700;font-size:6.5rem;line-height:1;color:#FFF3DC;text-shadow:0 0 46px rgba(255,218,158,.95),0 0 120px rgba(244,183,90,.6)}
+#sunriseveil .s-quote{font-style:italic;font-size:1.25rem;color:var(--parchment);margin-top:18px;line-height:1.6;font-weight:400;text-shadow:0 2px 22px rgba(11,13,18,.75)}
+#sunriseveil .s-quote b{font-style:normal;font-weight:600;color:#FFDA9E}
+#sunriseveil .s-k{font-family:var(--mono);font-size:.62rem;letter-spacing:.3em;color:#FFDA9E;margin-bottom:14px;text-shadow:0 1px 12px rgba(11,13,18,.6)}
 #sunriseveil .btns{display:flex;gap:10px;justify-content:center;margin-top:26px;flex-wrap:wrap}
-#sunriseveil .btn{background:var(--void);color:var(--amber);border-color:var(--void)}
+#sunriseveil .btn{background:var(--void);color:#F4B75A;border-color:var(--void)}
 
 /* ---------- panel additions ---------- */
 .presetrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
@@ -978,7 +978,7 @@ body.comparing #rail{top:34px}
     <div class="s-quote">&ldquo;I burn my life to make a sunrise that I know I&rsquo;ll never see.&rdquo;<br><b>You saw it.</b></div>
     <div class="btns">
       <button class="btn" id="sunshare">Share the sunrise</button>
-      <button class="btn ghost" id="sunclose" style="border-color:var(--void);color:var(--void)">Return to the archive</button>
+      <button class="btn ghost" id="sunclose" style="border-color:rgba(234,229,216,.7);color:var(--parchment)">Return to the archive</button>
     </div>
   </div>
 </div>
