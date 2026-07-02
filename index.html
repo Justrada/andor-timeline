@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Andor · Countdown to the Sunrise — A Spoiler-Safe Interactive Timeline</title>
+<meta name="description" content="An interactive Andor timeline with a built-in spoiler shield: set how far you've watched and everything beyond stays redacted.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#0B0D12;
+  --hull:#151A26;
+  --hull-2:#1B2130;
+  --line:#2A3142;
+  --parchment:#EAE5D8;
+  --ash:#98A0B0;
+  --amber:#E39A3B;        /* Ferrix / the rebellion */
+  --amber-soft:rgba(227,154,59,.14);
+  --steel:#7FA6BF;        /* Empire / wider galaxy */
+  --steel-soft:rgba(127,166,191,.13);
+  --ember:#E2543E;        /* Rogue One / the endgame */
+  --ember-soft:rgba(226,84,62,.13);
+  --green:#8FBF7F;
+  --redact:#3d1f1f;
+  --display:"Barlow Condensed",-apple-system,"Arial Narrow",sans-serif;
+  --body:"Spectral",Georgia,serif;
+  --mono:"IBM Plex Mono","SF Mono",Consolas,monospace;
+  --rail-w:150px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--void);
+  color:var(--parchment);
+  font-family:var(--body);
+  font-weight:300;
+  line-height:1.65;
+  overflow-x:hidden;
+}
+::selection{background:var(--amber);color:var(--void)}
+
+/* ---------- starfield ---------- */
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+#stars span{position:absolute;border-radius:50%;background:#cfd6e4;animation:twinkle 5s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.7}}
+
+/* ---------- dawn glow ---------- */
+#dawn{
+  position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse 120% 60% at 50% 110%, rgba(227,154,59,.35), rgba(226,84,62,.12) 45%, transparent 70%);
+  transition:opacity 1.4s ease;
+}
+#dawn.lit{opacity:1}
+
+/* ---------- fixed left rail ---------- */
+#rail{
+  position:fixed;top:0;left:0;bottom:0;width:var(--rail-w);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;
+  padding:26px 0;z-index:40;background:rgba(11,13,18,.82);backdrop-filter:blur(6px);
+}
+#rail .rail-label{
+  font-family:var(--mono);font-size:.58rem;letter-spacing:.22em;color:var(--ash);
+  writing-mode:vertical-rl;transform:rotate(180deg);margin-bottom:18px;
+}
+#meter{text-align:center;margin-bottom:8px}
+#meter .num{
+  font-family:var(--display);font-weight:700;font-size:3.4rem;line-height:.9;
+  color:var(--amber);letter-spacing:.02em;transition:color .5s;
+}
+#meter .sub{font-family:var(--mono);font-size:.6rem;letter-spacing:.28em;color:var(--ash);margin-top:6px}
+#meter.flick .num{animation:flick .35s steps(2) 1}
+@keyframes flick{50%{opacity:.25}}
+
+#eranav{display:flex;flex-direction:column;gap:4px;margin-top:18px;flex:1;justify-content:center}
+#eranav a{
+  display:flex;align-items:center;gap:10px;text-decoration:none;
+  padding:5px 10px;border-radius:3px;
+}
+#eranav .dot{
+  width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ash);
+  background:transparent;flex:none;transition:all .25s;
+}
+#eranav a.locked .dot{border-style:dashed;opacity:.45}
+#eranav .tag{
+  font-family:var(--mono);font-size:.56rem;letter-spacing:.14em;color:var(--ash);
+  opacity:0;transform:translateX(-4px);transition:all .25s;white-space:nowrap;
+}
+#eranav a:hover .tag,#eranav a:focus-visible .tag{opacity:1;transform:none}
+#eranav a.active .dot{background:var(--amber);border-color:var(--amber);box-shadow:0 0 10px rgba(227,154,59,.7)}
+#eranav a.active .tag{opacity:1;transform:none;color:var(--amber)}
+
+/* rail clearance summary */
+#railclear{margin-top:14px;text-align:center;width:100%;padding:0 10px}
+#railclear .pct{
+  font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;color:var(--amber);
+}
+#railclear .bar{
+  height:3px;background:var(--line);border-radius:2px;margin:7px 4px 0;overflow:hidden;
+}
+#railclear .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),var(--ember));width:0%;transition:width .8s ease}
+#railclear .lbl{font-family:var(--mono);font-size:.5rem;letter-spacing:.2em;color:var(--ash);margin-top:6px}
+
+/* ---------- mobile top bar ---------- */
+#mobilebar{display:none}
+
+/* ---------- layout ---------- */
+main{position:relative;z-index:1;margin-left:var(--rail-w);padding:0 clamp(20px,6vw,90px)}
+.wrap{max-width:780px;margin:0 auto}
+
+/* ---------- hero ---------- */
+#hero{padding:9vh 0 40px}
+.kicker{font-family:var(--mono);font-size:.68rem;letter-spacing:.3em;color:var(--steel);margin-bottom:20px}
+.kicker .shield-on{color:var(--green)}
+#hero h1{
+  font-family:var(--display);font-weight:700;text-transform:uppercase;
+  font-size:clamp(3.2rem,8vw,6rem);line-height:.92;letter-spacing:.015em;
+}
+#hero h1 .warm{color:var(--amber)}
+.epigraph{
+  margin:34px 0 8px;padding-left:18px;border-left:2px solid var(--amber);
+  font-style:italic;font-size:1.14rem;color:var(--parchment);max-width:34ch;
+}
+.epigraph cite{
+  display:block;margin-top:10px;font-style:normal;font-family:var(--mono);
+  font-size:.62rem;letter-spacing:.22em;color:var(--ash);
+}
+.lede{margin-top:30px;color:var(--ash);font-size:1.02rem;max-width:62ch}
+.lede b{color:var(--parchment);font-weight:600}
+
+/* ---------- clearance summary card (hero) ---------- */
+#clearcard{
+  margin-top:34px;background:var(--hull);border:1px solid var(--line);border-left:3px solid var(--green);
+  border-radius:3px;padding:18px 20px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;
+}
+#clearcard .cc-main{flex:1;min-width:220px}
+#clearcard .cc-k{font-family:var(--mono);font-size:.56rem;letter-spacing:.22em;color:var(--green)}
+#clearcard .cc-v{font-family:var(--display);font-weight:600;font-size:1.5rem;text-transform:uppercase;letter-spacing:.02em;margin-top:2px}
+#clearcard .cc-sub{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;color:var(--ash);margin-top:6px;line-height:1.9}
+#clearcard .cc-btns{display:flex;flex-direction:column;gap:8px}
+.btn{
+  font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;cursor:pointer;text-transform:uppercase;
+  background:var(--amber);color:var(--void);border:1px solid var(--amber);
+  padding:10px 16px;border-radius:2px;transition:all .2s;font-weight:600;
+}
+.btn:hover{background:#f0ad55}
+.btn.ghost{background:transparent;color:var(--ash);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--ash);color:var(--parchment)}
+.btn.danger{background:transparent;color:var(--ember);border-color:var(--ember)}
+.btn.danger:hover{background:var(--ember-soft)}
+
+/* next-up strip */
+#nextup{
+  margin-top:14px;border:1px dashed var(--line);border-radius:3px;padding:12px 16px;
+  font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;color:var(--ash);
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+}
+#nextup b{color:var(--amber);font-weight:600}
+#nextup .adv{margin-left:auto;cursor:pointer;background:none;border:1px solid var(--line);color:var(--parchment);
+  font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;padding:6px 10px;border-radius:2px;transition:all .2s}
+#nextup .adv:hover{border-color:var(--amber);color:var(--amber)}
+
+/* ---------- filters ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:36px 0 4px}
+.chip{
+  font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;cursor:pointer;
+  background:transparent;color:var(--ash);border:1px solid var(--line);
+  padding:8px 14px;border-radius:2px;transition:all .2s;text-transform:uppercase;
+}
+.chip:hover{border-color:var(--ash);color:var(--parchment)}
+.chip.on{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
+.chip.on[data-cat="galaxy"]{border-color:var(--steel);color:var(--steel);background:var(--steel-soft)}
+.chip.on[data-cat="endgame"]{border-color:var(--ember);color:var(--ember);background:var(--ember-soft)}
+.chip.on[data-cat="new"]{border-color:var(--green);color:var(--green);background:rgba(143,191,127,.12)}
+
+/* ---------- timeline ---------- */
+#timeline{padding-bottom:30px}
+.era{padding:64px 0 10px;scroll-margin-top:40px}
+.era-head{margin-bottom:34px}
+.era-head .stamp{font-family:var(--mono);font-size:.62rem;letter-spacing:.26em;color:var(--ash);margin-bottom:10px}
+.era-head h2{
+  font-family:var(--display);font-weight:600;text-transform:uppercase;
+  font-size:clamp(1.9rem,4vw,2.7rem);line-height:1;letter-spacing:.02em;
+}
+.era-head .intro{margin-top:12px;color:var(--ash);max-width:60ch;font-size:.98rem}
+
+.track{position:relative;padding-left:34px}
+.track::before{
+  content:"";position:absolute;left:8px;top:0;bottom:0;width:2px;
+  background:var(--spine,linear-gradient(var(--line),var(--line)));
+  opacity:.9;
+}
+.event{position:relative;margin-bottom:22px;opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+.event.seen{opacity:1;transform:none}
+.event::before{
+  content:"";position:absolute;left:-31px;top:22px;width:11px;height:11px;border-radius:50%;
+  background:var(--void);border:2px solid var(--c,var(--amber));box-shadow:0 0 8px rgba(0,0,0,.6);
+}
+.event[data-cat="andor"]{--c:var(--amber);--csoft:var(--amber-soft)}
+.event[data-cat="galaxy"]{--c:var(--steel);--csoft:var(--steel-soft)}
+.event[data-cat="endgame"]{--c:var(--ember);--csoft:var(--ember-soft)}
+.event.locked::before{border-color:#4a3535;border-style:dashed}
+.event.hidden{display:none}
+
+.card{
+  width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;
+  background:var(--hull);border:1px solid var(--line);border-left:3px solid var(--c);
+  border-radius:3px;padding:18px 20px 16px;transition:border-color .25s,background .25s;
+}
+.card:hover,.card:focus-visible{border-color:var(--c);background:var(--hull-2)}
+.card:focus-visible{outline:2px solid var(--c);outline-offset:2px}
+.meta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px}
+.meta .file{font-family:var(--mono);font-size:.58rem;letter-spacing:.18em;color:var(--ash)}
+.meta .tag{
+  font-family:var(--mono);font-size:.55rem;letter-spacing:.16em;color:var(--c);
+  background:var(--csoft);border:1px solid var(--c);border-radius:2px;padding:2px 7px;
+}
+.card h3{
+  font-family:var(--display);font-weight:600;font-size:1.45rem;letter-spacing:.02em;
+  text-transform:uppercase;line-height:1.05;display:flex;justify-content:space-between;gap:12px;
+}
+.card h3 .chev{color:var(--ash);font-family:var(--mono);font-size:.9rem;transition:transform .3s;flex:none;margin-top:3px}
+.event.open .chev{transform:rotate(90deg);color:var(--c)}
+.card .blurb{margin-top:8px;color:#C7CBD6;font-size:.97rem}
+.more{max-height:0;overflow:hidden;transition:max-height .45s ease}
+.more-inner{padding-top:12px;margin-top:12px;border-top:1px dashed var(--line);color:var(--ash);font-size:.94rem}
+.more-inner b{color:var(--parchment);font-weight:600}
+.event.open .more{max-height:640px}
+.hint{font-family:var(--mono);font-size:.55rem;letter-spacing:.2em;color:var(--ash);opacity:.7;margin-top:10px}
+.event.open .hint{display:none}
+
+/* production-file annotation inside expanded cards */
+.prodfile{
+  margin-top:12px;padding:10px 12px;background:rgba(127,166,191,.07);
+  border:1px dashed rgba(127,166,191,.4);border-radius:2px;font-size:.86rem;color:#B9C4D2;
+}
+.prodfile .pf-k{font-family:var(--mono);font-size:.52rem;letter-spacing:.22em;color:var(--steel);display:block;margin-bottom:4px}
+
+/* ---------- NEW INTEL badge ---------- */
+.newpip{
+  font-family:var(--mono);font-size:.52rem;letter-spacing:.18em;font-weight:600;
+  color:var(--void);background:var(--green);border-radius:2px;padding:2px 7px;
+  animation:pipglow 2s ease-in-out infinite;
+}
+@keyframes pipglow{0%,100%{box-shadow:0 0 4px rgba(143,191,127,.4)}50%{box-shadow:0 0 12px rgba(143,191,127,.9)}}
+
+/* ---------- REDACTION ---------- */
+.bar{
+  display:inline-block;height:.72em;background:var(--redact);border-radius:1px;
+  vertical-align:baseline;margin:0 3px 0 0;position:relative;top:.06em;
+  background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(0,0,0,.35) 6px 12px);
+}
+.sealed .card,.card.sealedcard{
+  cursor:default;border-left-color:#4a3535;background:rgba(21,17,17,.55);
+}
+.sealed .card:hover{border-color:var(--line);background:rgba(21,17,17,.55)}
+.sealed .meta .tag{color:#8a6060;border-color:#5a4040;background:rgba(90,64,64,.15)}
+.sealstamp{
+  font-family:var(--mono);font-size:.55rem;letter-spacing:.24em;color:#B0524A;
+  border:1px solid #6e3a34;border-radius:2px;padding:2px 7px;
+  background:rgba(110,58,52,.12);transform:rotate(-1deg);display:inline-block;
+}
+.unlockreq{
+  margin-top:10px;font-family:var(--mono);font-size:.56rem;letter-spacing:.16em;color:var(--ash);
+}
+.unlockreq b{color:var(--amber);font-weight:600}
+.era.sealed-era .era-head h2,.era.sealed-era .intro{user-select:none}
+
+/* ---------- relay ---------- */
+#relay{padding:70px 0 20px;scroll-margin-top:40px}
+.relay-scroll{display:flex;gap:0;overflow-x:auto;padding:24px 4px 30px;scrollbar-width:thin}
+.node{flex:none;width:200px;position:relative;padding-right:34px}
+.node:not(:last-child)::after{
+  content:"›";position:absolute;right:8px;top:14px;color:var(--amber);
+  font-family:var(--mono);font-size:1.3rem;
+}
+.node .n{font-family:var(--mono);font-size:.58rem;letter-spacing:.2em;color:var(--amber);margin-bottom:8px}
+.node h4{font-family:var(--display);font-weight:600;font-size:1.2rem;text-transform:uppercase;letter-spacing:.03em;line-height:1.05}
+.node p{margin-top:6px;font-size:.85rem;color:var(--ash);line-height:1.5}
+.node.imp .n,.node.imp:not(:last-child)::after{color:var(--ember)}
+.node.sealednode .n{color:#8a6060}
+.node.sealednode:not(:last-child)::after{color:#5a4040}
+
+/* ---------- characters ---------- */
+#characters{padding:70px 0;scroll-margin-top:40px}
+.char-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:26px}
+.char{
+  background:var(--hull);border:1px solid var(--line);border-radius:3px;padding:16px 16px 14px;
+  transition:border-color .25s;position:relative;
+}
+.char:hover{border-color:var(--f)}
+.char.hidden{display:none}
+.char h4{font-family:var(--display);font-weight:600;font-size:1.3rem;text-transform:uppercase;letter-spacing:.02em;line-height:1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.char .role{font-family:var(--mono);font-size:.56rem;letter-spacing:.16em;color:var(--ash);margin:6px 0 10px}
+.char p{font-size:.88rem;color:#C0C5D1;line-height:1.5}
+.badge{
+  display:inline-block;margin-top:12px;font-family:var(--mono);font-size:.54rem;
+  letter-spacing:.16em;padding:3px 8px;border-radius:2px;border:1px solid var(--f);color:var(--f);
+}
+.char[data-fate="andor"]{--f:var(--amber)}
+.char[data-fate="rogue"]{--f:var(--ember)}
+.char[data-fate="sunrise"]{--f:var(--green)}
+.char[data-fate="other"]{--f:var(--steel)}
+.char[data-fate="unknown"]{--f:#5c6478}
+.char.sealedchar{background:rgba(21,17,17,.55)}
+.char.sealedchar:hover{border-color:#5a4040}
+
+/* ---------- vault (fun facts) ---------- */
+#vault{padding:70px 0 10px;scroll-margin-top:40px}
+.fact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:26px}
+.fact{
+  background:var(--hull);border:1px solid var(--line);border-top:3px solid var(--steel);
+  border-radius:3px;padding:16px 18px 14px;position:relative;
+}
+.fact .f-k{font-family:var(--mono);font-size:.54rem;letter-spacing:.2em;color:var(--steel);margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fact p{font-size:.9rem;color:#C0C5D1;line-height:1.55}
+.fact.sealedfact{border-top-color:#5a4040;background:rgba(21,17,17,.55)}
+
+/* ---------- footer ---------- */
+#order{padding:60px 0 40px;scroll-margin-top:40px}
+.order-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:22px}
+.order-step{
+  font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.03em;
+  border:1px solid var(--line);background:var(--hull);border-radius:3px;padding:10px 16px;font-size:1rem;
+}
+.order-step.done{border-color:var(--green);color:var(--green)}
+.order-step.now{border-color:var(--amber);color:var(--amber);box-shadow:0 0 12px rgba(227,154,59,.25)}
+.order-arrow{font-family:var(--mono);color:var(--amber)}
+footer{
+  border-top:1px solid var(--line);margin-top:40px;padding:28px 0 60px;
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;color:var(--ash);line-height:2;
+}
+footer a{color:var(--steel)}
+
+/* ---------- section titles shared ---------- */
+.sec-title{font-family:var(--display);font-weight:600;text-transform:uppercase;font-size:clamp(1.8rem,3.5vw,2.4rem);letter-spacing:.02em}
+.sec-sub{color:var(--ash);margin-top:10px;max-width:62ch;font-size:.98rem}
+.sec-count{font-family:var(--mono);font-size:.58rem;letter-spacing:.18em;color:var(--ash);margin-top:8px}
+.sec-count b{color:var(--amber);font-weight:600}
+
+/* ---------- floating buttons ---------- */
+#jump{position:fixed;right:18px;bottom:18px;z-index:45;display:flex;flex-direction:column;gap:8px}
+#jump button{
+  width:42px;height:42px;border-radius:3px;border:1px solid var(--line);cursor:pointer;
+  background:rgba(21,26,38,.9);color:var(--parchment);font-family:var(--mono);font-size:1rem;
+  transition:all .2s;backdrop-filter:blur(4px);
+}
+#jump button:hover{border-color:var(--amber);color:var(--amber)}
+#jump button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+#shieldfab{
+  position:fixed;left:calc(var(--rail-w) + 18px);bottom:18px;z-index:45;
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  background:rgba(21,26,38,.92);border:1px solid var(--green);border-radius:3px;
+  padding:10px 14px;color:var(--green);font-family:var(--mono);font-size:.6rem;
+  letter-spacing:.16em;backdrop-filter:blur(4px);transition:all .2s;text-transform:uppercase;
+}
+#shieldfab:hover{background:rgba(143,191,127,.12)}
+#shieldfab .unread{
+  background:var(--green);color:var(--void);border-radius:2px;padding:1px 6px;font-weight:600;
+}
+#shieldfab .unread:empty{display:none}
+
+/* ---------- clearance modal ---------- */
+#veil{
+  position:fixed;inset:0;z-index:90;background:rgba(5,6,9,.78);backdrop-filter:blur(5px);
+  display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:5vh 16px 8vh;
+}
+#veil.show{display:flex}
+#panel{
+  width:100%;max-width:620px;background:var(--hull);border:1px solid var(--line);
+  border-top:3px solid var(--green);border-radius:4px;padding:28px clamp(18px,4vw,34px) 26px;
+}
+#panel .p-k{font-family:var(--mono);font-size:.58rem;letter-spacing:.26em;color:var(--green)}
+#panel h2{font-family:var(--display);font-weight:600;text-transform:uppercase;font-size:1.9rem;letter-spacing:.02em;margin-top:4px}
+#panel .p-sub{color:var(--ash);font-size:.92rem;margin-top:8px;max-width:56ch}
+.season-block{margin-top:24px}
+.season-block .sb-h{
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;color:var(--parchment);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;
+}
+.season-block .sb-h small{color:var(--ash);letter-spacing:.12em}
+.epgrid{display:grid;grid-template-columns:repeat(12,1fr);gap:5px;margin-top:10px}
+.ep{
+  aspect-ratio:1;border:1px solid var(--line);border-radius:2px;background:transparent;
+  color:var(--ash);font-family:var(--mono);font-size:.68rem;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;
+}
+.ep:hover{border-color:var(--amber);color:var(--amber)}
+.ep.watched{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
+.ep.tip{background:var(--amber);color:var(--void);font-weight:600}
+.arcline{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:5px}
+.arcline span{font-family:var(--mono);font-size:.5rem;letter-spacing:.1em;color:var(--ash);text-align:center;opacity:.8}
+.zerobtn{
+  margin-top:10px;background:none;border:1px dashed var(--line);border-radius:2px;color:var(--ash);
+  font-family:var(--mono);font-size:.56rem;letter-spacing:.14em;padding:7px 12px;cursor:pointer;transition:all .2s;
+}
+.zerobtn:hover{border-color:var(--ember);color:var(--ember)}
+.movierow{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.movie{
+  display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:2px;
+  padding:10px 14px;cursor:pointer;transition:all .15s;background:transparent;color:var(--parchment);
+  font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;text-align:left;width:100%;
+}
+.movie:hover{border-color:var(--ash)}
+.movie .box{
+  width:14px;height:14px;border:1.5px solid var(--ash);border-radius:2px;flex:none;position:relative;transition:all .15s;
+}
+.movie.on{border-color:var(--green);color:var(--green)}
+.movie.on .box{border-color:var(--green);background:var(--green)}
+.movie.on .box::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--void);font-size:.6rem;font-weight:600}
+.movie small{margin-left:auto;color:var(--ash);letter-spacing:.08em;text-align:right}
+#panel .p-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;align-items:center}
+#panel .p-note{font-family:var(--mono);font-size:.54rem;letter-spacing:.12em;color:var(--ash);margin-top:14px;line-height:1.9}
+
+/* ---------- toast ---------- */
+#toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);z-index:95;opacity:0;
+  background:var(--hull-2);border:1px solid var(--green);border-radius:3px;color:var(--parchment);
+  font-family:var(--mono);font-size:.64rem;letter-spacing:.12em;padding:12px 18px;
+  pointer-events:none;transition:all .35s ease;max-width:88vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast b{color:var(--green);font-weight:600}
+
+/* ---------- responsive ---------- */
+@media(max-width:959px){
+  :root{--rail-w:0px}
+  #rail{display:none}
+  main{margin-left:0;padding:0 20px}
+  #shieldfab{left:14px;bottom:14px}
+  #mobilebar{
+    display:flex;position:sticky;top:0;z-index:40;align-items:center;gap:12px;
+    background:rgba(11,13,18,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+    padding:10px 16px;margin:0 -20px;
+  }
+  #mmeter{font-family:var(--display);font-weight:700;font-size:1.5rem;color:var(--amber);min-width:58px}
+  #mmeter small{display:block;font-family:var(--mono);font-size:.5rem;letter-spacing:.2em;color:var(--ash);font-weight:400}
+  #mnav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+  #mnav::-webkit-scrollbar{display:none}
+  #mnav a{
+    flex:none;text-decoration:none;font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;
+    color:var(--ash);border:1px solid var(--line);border-radius:2px;padding:6px 10px;
+  }
+  #mnav a.active{color:var(--amber);border-color:var(--amber);background:var(--amber-soft)}
+  #hero{padding-top:38px}
+  .epgrid{grid-template-columns:repeat(6,1fr)}
+  .arcline{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  #stars span{animation:none;opacity:.35}
+  .event{opacity:1;transform:none;transition:none}
+  .more{transition:none}
+  #meter.flick .num{animation:none}
+  .newpip{animation:none}
+}
+</style>
+</head>
+<body>
+
+<div id="stars" aria-hidden="true"></div>
+<div id="dawn" aria-hidden="true"></div>
+
+<!-- fixed rail (desktop) -->
+<nav id="rail" aria-label="Timeline eras">
+  <span class="rail-label">COUNTDOWN&nbsp;TO&nbsp;THE&nbsp;SUNRISE</span>
+  <div id="meter" aria-live="polite">
+    <div class="num">19</div>
+    <div class="sub">–6 BBY</div>
+  </div>
+  <div id="eranav"></div>
+  <div id="railclear">
+    <div class="pct" id="railpct">0%</div>
+    <div class="bar"><i id="railbar"></i></div>
+    <div class="lbl">DECLASSIFIED</div>
+  </div>
+</nav>
+
+<main>
+  <!-- mobile bar -->
+  <div id="mobilebar">
+    <div id="mmeter">19<small>–6 BBY</small></div>
+    <nav id="mnav" aria-label="Timeline eras"></nav>
+  </div>
+
+  <div class="wrap">
+
+    <header id="hero">
+      <p class="kicker">AXIS FILE · 19 BBY → 0 BBY · <span id="shieldstate" class="shield-on">SPOILER SHIELD: ACTIVE</span></p>
+      <h1>Andor<br><span class="warm">Countdown to the Sunrise</span></h1>
+      <blockquote class="epigraph">
+        &ldquo;I burn my life to make a sunrise that I know I&rsquo;ll never see.&rdquo;
+        <cite>— LUTHEN RAEL · SEASON 1</cite>
+      </blockquote>
+      <p class="lede">
+        Five years. Twenty-four episodes. One secret. This is the full arc of <b>Andor</b> —
+        placed inside the wider Star Wars chronology — but sealed to match <b>your</b> progress.
+        Tell the archive how far you&rsquo;ve watched and it declassifies exactly that much:
+        everything beyond your clearance stays under an ISB censor bar. No spoilers. Ever.
+        Come back after each episode to see what&rsquo;s new.
+      </p>
+
+      <div id="clearcard">
+        <div class="cc-main">
+          <span class="cc-k">YOUR CLEARANCE</span>
+          <div class="cc-v" id="ccv">NOT SET</div>
+          <div class="cc-sub" id="ccsub">Set your viewing progress to begin declassification.</div>
+        </div>
+        <div class="cc-btns">
+          <button class="btn" id="openpanel">Set clearance</button>
+          <button class="btn ghost" id="markread">Mark all as read</button>
+        </div>
+      </div>
+
+      <div id="nextup" hidden>
+        <span id="nextuptext"></span>
+        <button class="adv" id="advbtn">I just watched it ✓</button>
+      </div>
+
+      <div class="chips" role="group" aria-label="Filter timeline entries">
+        <button class="chip on" data-cat="all">All entries</button>
+        <button class="chip" data-cat="andor">Andor</button>
+        <button class="chip" data-cat="galaxy">Wider galaxy</button>
+        <button class="chip" data-cat="endgame">Rogue One &amp; beyond</button>
+        <button class="chip" data-cat="new">★ New intel</button>
+      </div>
+    </header>
+
+    <div id="timeline"></div>
+
+    <section id="relay">
+      <h2 class="sec-title">The Relay</h2>
+      <p class="sec-sub" id="relaysub"></p>
+      <div class="relay-scroll" id="relaychain"></div>
+    </section>
+
+    <section id="characters">
+      <h2 class="sec-title">Dossiers &amp; Fates</h2>
+      <p class="sec-sub">
+        Living files on the people of the record. Dossiers grow as you watch — roles update,
+        and fates stay sealed until the moment you&rsquo;ve actually seen them land.
+      </p>
+      <div class="chips" role="group" aria-label="Filter characters by fate">
+        <button class="chip on" data-fate="all">Everyone</button>
+        <button class="chip" data-fate="andor">Falls in the series</button>
+        <button class="chip" data-fate="rogue">Falls in the films</button>
+        <button class="chip" data-fate="sunrise">Sees the sunrise</button>
+        <button class="chip" data-fate="other">Other fates</button>
+        <button class="chip" data-fate="unknown">Fate still sealed</button>
+      </div>
+      <div class="char-grid" id="chargrid"></div>
+    </section>
+
+    <section id="vault">
+      <h2 class="sec-title">The Production Vault</h2>
+      <p class="sec-sub">
+        Fun facts and behind-the-scenes intel from the making of the series — each file sealed
+        until the episode it touches is safely behind you.
+      </p>
+      <p class="sec-count" id="vaultcount"></p>
+      <div class="fact-grid" id="factgrid"></div>
+    </section>
+
+    <section id="order">
+      <h2 class="sec-title">One Continuous Story</h2>
+      <p class="sec-sub">Watch it as a single five-year film. The whole saga runs in one straight line — your position on it is marked below.</p>
+      <div class="order-row" id="orderrow"></div>
+      <footer>
+        UNOFFICIAL FAN REFERENCE · PLOT SUMMARY &amp; ANALYSIS ONLY · NOT AFFILIATED WITH LUCASFILM OR DISNEY<br>
+        DATES USE THE BBY/ABY CALENDAR (BEFORE / AFTER THE BATTLE OF YAVIN) · SOME EARLY DATES ARE APPROXIMATE<br>
+        YOUR PROGRESS IS STORED ONLY IN THIS BROWSER (LOCALSTORAGE) · NOTHING IS SENT ANYWHERE
+      </footer>
+    </section>
+
+  </div>
+</main>
+
+<div id="jump" aria-label="Jump between eras">
+  <button id="prevEra" title="Previous era" aria-label="Previous era">↑</button>
+  <button id="nextEra" title="Next era" aria-label="Next era">↓</button>
+</div>
+
+<button id="shieldfab" aria-label="Open spoiler shield settings">
+  ◈ SHIELD <span class="unread" id="fabunread"></span>
+</button>
+
+<!-- clearance modal -->
+<div id="veil" role="dialog" aria-modal="true" aria-labelledby="paneltitle">
+  <div id="panel">
+    <span class="p-k">ISB IDENT · SELF-DECLARED</span>
+    <h2 id="paneltitle">Set Your Clearance</h2>
+    <p class="p-sub">
+      Mark the <b>last episode you finished</b> and any films you&rsquo;ve seen.
+      The archive only ever shows you what you&rsquo;ve already watched — advance it
+      whenever you finish an episode and new files will unseal, flagged as new intel.
+    </p>
+
+    <div class="season-block">
+      <div class="sb-h"><span>ANDOR · SEASON 1 <small>(2022)</small></span><small>ONE YEAR · FOUR ARCS</small></div>
+      <div class="epgrid" id="s1grid"></div>
+      <div class="arcline"><span>FERRIX</span><span>ALDHANI</span><span>NARKINA 5</span><span>RIX ROAD</span></div>
+    </div>
+
+    <div class="season-block">
+      <div class="sb-h"><span>ANDOR · SEASON 2 <small>(2025)</small></span><small>FOUR YEARS · ONE ARC EACH</small></div>
+      <div class="epgrid" id="s2grid"></div>
+      <div class="arcline"><span>4 BBY</span><span>3 BBY</span><span>2 BBY</span><span>1 BBY</span></div>
+    </div>
+    <button class="zerobtn" id="zeroep">I haven&rsquo;t started Andor yet</button>
+
+    <div class="season-block">
+      <div class="sb-h"><span>FILMS <small>· MARK WHAT YOU&rsquo;VE SEEN</small></span></div>
+      <div class="movierow" id="movierow"></div>
+    </div>
+
+    <div class="p-actions">
+      <button class="btn" id="savepanel">Save clearance</button>
+      <button class="btn ghost" id="closepanel">Cancel</button>
+      <button class="btn danger" id="resetall">Reset everything</button>
+    </div>
+    <p class="p-note">
+      TIP: CLICK AN EPISODE TO SET "WATCHED THROUGH HERE" · CLICK IT AGAIN TO STEP BACK ONE ·
+      PROGRESS IS SAVED IN THIS BROWSER ONLY
+    </p>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script id="data">
+/* Gates use GLOBAL episode numbers: S1E1=1 … S1E12=12, S2E1=13 … S2E12=24.
+   A gate {ep:N, movies:[…]} means: visible once you've watched through episode N
+   AND seen every listed film. Episode attributions verified against episode guides. */
+window.ANDOR_DATA=(function(){
+
+const EP_TITLES=[
+ "Kassa","That Would Be Me","Reckoning","Aldhani","The Axe Forgets","The Eye",
+ "Announcement","Narkina 5","Nobody's Listening!","One Way Out","Daughter of Ferrix","Rix Road",
+ "One Year Later","Sagrona Teema","Harvest","Ever Been to Ghorman?","I Have Friends Everywhere","What a Festive Evening",
+ "Messenger","Who Are You?","Welcome to the Rebellion","Make It Stop","Who Else Knows?","Jedha, Kyber, Erso"
+];
+
+const MOVIES=[
+ {id:"rots",name:"REVENGE OF THE SITH",year:"2005",note:"19 BBY · how the Empire began"},
+ {id:"r1",name:"ROGUE ONE",year:"2016",note:"0 BBY · continues the series directly"},
+ {id:"anh",name:"A NEW HOPE",year:"1977",note:"0 BBY · the Battle of Yavin"},
+ {id:"rotj",name:"RETURN OF THE JEDI",year:"1983",note:"4 ABY · the Empire ends"}
+];
+
+const ERAS=[
+ {id:"prelude",meter:"19",sub:"–6 BBY",nav:"PRELUDE",stamp:"19 BBY – 6 BBY",title:"Prelude · A Galaxy Falls",
+  gateTitle:null,gateFull:{ep:22},
+  teaser:"Before Andor opens, the Republic has already died. These are the years that build the machine the series will dissect.",
+  intro:"Before Andor opens, the Republic has already died. These are the years that build the machine the series will dissect — and quietly load its two central weapons: an orphan and a deserter.",
+  spine:"linear-gradient(180deg,#3A4356,#40495e)"},
+ {id:"s1",meter:"5",sub:"BBY",nav:"SEASON 1",stamp:"ANDOR · SEASON 1 · ONE YEAR",title:"5 BBY · The Spark",
+  gateTitle:{ep:1},gateFull:{ep:12},
+  teaser:"One year on Ferrix and beyond. A thief crosses a line the Empire can't ignore — and someone dangerous is watching.",
+  intro:"One year, told in four three-episode movements: a murder, a heist, a prison, a funeral. A thief becomes a believer, and the Empire teaches an entire planet to fight back.",
+  spine:"linear-gradient(180deg,#40495e,#6a5a44)"},
+ {id:"y4",meter:"4",sub:"BBY",nav:"S2 · 4 BBY",stamp:"ANDOR · SEASON 2 · ARC 1 · ONE YEAR LATER",title:"4 BBY · Aftershocks",
+  gateTitle:{ep:13},gateFull:{ep:15},
+  teaser:"Season 2 jumps a year per arc, each arc covering only about three days. Year one: the fight is still scattered, amateur, and paying for survival in advance.",
+  intro:"Season 2 jumps a year per arc, each arc covering only about three days. Year one: the movement is still amateurs and refugees — while in a locked room, the Empire plans a genocide over lunch.",
+  spine:"linear-gradient(180deg,#6a5a44,#8a6a3f)"},
+ {id:"y3",meter:"3",sub:"BBY",nav:"S2 · 3 BBY",stamp:"ANDOR · SEASON 2 · ARC 2",title:"3 BBY · Manufactured War",
+  gateTitle:{ep:16},gateFull:{ep:18},
+  teaser:"The Empire turns its full attention to one proud, peaceful world — and starts a very long, very deliberate game.",
+  intro:"The Empire doesn't fear a rebellion on Ghorman — it needs one. A year of engineered radicalization, undercover lives, and losses that buy nothing.",
+  spine:"linear-gradient(180deg,#8a6a3f,#b07a38)"},
+ {id:"y2",meter:"2",sub:"BBY",nav:"S2 · 2 BBY",stamp:"ANDOR · SEASON 2 · ARC 3",title:"2 BBY · The Breaking Point",
+  gateTitle:{ep:19},gateFull:{ep:21},
+  teaser:"The hinge of the entire saga: three days that change how the whole galaxy sees the Empire — and what it costs to say so out loud.",
+  intro:"The hinge of the entire saga: a massacre broadcast to the galaxy, a senator who finally says the word, and the birth of the actual Rebel Alliance.",
+  spine:"linear-gradient(180deg,#b07a38,#cf8f3a)"},
+ {id:"y1",meter:"1",sub:"BBY",nav:"S2 · 1 BBY",stamp:"ANDOR · SEASON 2 · ARC 4 · THE FINAL DAYS",title:"1 BBY · The Secret",
+  gateTitle:{ep:22},gateFull:{ep:24},
+  teaser:"Three days that decide everything.",
+  intro:"Three days that decide everything. A mole finds the Emperor's project, a spymaster burns his network — and his life — and the word travels to Yavin.",
+  spine:"linear-gradient(180deg,#cf8f3a,#E39A3B)"},
+ {id:"r1",meter:"0",sub:"BBY",nav:"ROGUE ONE",stamp:"ROGUE ONE · THE FILM THAT FOLLOWS",title:"0 BBY · Rogue One",
+  gateTitle:null,gateFull:{ep:24,movies:["r1"]},
+  teaser:"The 2016 film picks up the thread. How close it sits to the series — and everything inside it — stays sealed until you've seen both the finale and the film.",
+  intro:"Cassian's flight out of the Andor finale lands directly in the film's opening scene. Everything the series set in motion now has about a week to live.",
+  spine:"linear-gradient(180deg,#E39A3B,#E2543E)"},
+ {id:"after",meter:"0",sub:"THE SUNRISE",nav:"SUNRISE",stamp:"BATTLE OF YAVIN & BEYOND",title:"The Sunrise",
+  gateTitle:null,gateFull:{ep:24,movies:["r1","anh"]},
+  teaser:"Every date on this page counts down to here.",
+  intro:"The dawn nobody in the relay lived to see — except the ones who did.",
+  spine:"linear-gradient(180deg,#E2543E,#F4B75A)"}
+];
+
+const EVENTS=[
+/* ---- PRELUDE ---- */
+{id:"emp-rises",era:"prelude",cat:"galaxy",gate:{movies:["rots"]},file:"19 BBY · REVENGE OF THE SITH",title:"The Empire Rises",
+ blurb:"The Clone Wars end with Palpatine declaring himself Emperor and the Jedi all but exterminated. The Republic's institutions don't collapse — they're repurposed.",
+ more:"Everything Andor examines — the security bureaus, the propaganda ministries, the prison economies — is built in these years. The series is the anatomy of this machine, twenty years into its run."},
+{id:"deserter",era:"prelude",cat:"andor",gate:{ep:22},file:"c. 18 BBY · REVEALED IN S2 · E10",title:"A Deserter and an Orphan",
+ blurb:"An Imperial sergeant named Lear walks away from a massacre he helped commit, taking with him one survivor: a girl who will become Kleya Marki. He will become Luthen Rael.",
+ more:"Season 2's flashbacks reframe the whole series: the rebellion's coldest strategist is a war criminal doing penance, and the girl he saved grows into the network's true operational mind. Their bond is part father-daughter, part handler-agent — and the series' best-kept secret."},
+{id:"kassa",era:"prelude",cat:"andor",gate:{ep:7},file:"c. 17–13 BBY · KENARI & FERRIX",title:"Kassa Becomes Cassian",
+ blurb:"On the ruined mining world Kenari, a boy is separated from his little sister and taken in by Maarva and Clem Andor of Ferrix. Around 13 BBY, stormtroopers execute Clem in Rix Road.",
+ more:"Two wounds define Cassian before the series even starts: the sister he is searching for when the story opens, and a father hanged by the Empire in the middle of the town that raised him."},
+{id:"fragments",era:"prelude",cat:"galaxy",gate:null,file:"c. 10–9 BBY · SOLO & OBI-WAN KENOBI",title:"Resistance Without a Name",
+ blurb:"Across the mid-Empire years, defiance exists only as scattered fragments — criminal networks, hidden Jedi, underground railways for the hunted.",
+ more:"There is no Alliance yet. That absence is Andor's whole subject: the show is about the painful, ugly work of turning fragments into a movement."},
+{id:"sparks",era:"prelude",cat:"galaxy",gate:{ep:9},file:"5 BBY · THE WIDER BOARD",title:"Sparks Everywhere, Trust Nowhere",
+ blurb:"As Andor opens, other cells are already burning: Saw Gerrera's Partisans, sympathetic senators, scattered local uprisings — none of whom trust each other.",
+ more:"Luthen's network (codename among ISB analysts: Axis) funds and connects some of these cells while deliberately keeping them apart. Fragmentation is his security model — and later, his tragedy."},
+
+/* ---- SEASON 1 · 5 BBY ---- */
+{id:"corpos",era:"s1",cat:"andor",gate:{ep:3},file:"S1 · E1–3 · FERRIX",title:"Two Corpos in a Gutter",
+ blurb:"Searching a brothel town for his sister, Cassian kills two corporate security officers. Deputy Inspector Syril Karn ignores orders to bury it — and lights a fuse that burns for five years.",
+ more:"To fund his escape, Cassian tries to sell a stolen Imperial Starpath unit. The buyer Bix contacts is Luthen Rael, who sees the anger under the thief and extracts him mid-raid with an offer: one job, real money, a real fight. A Starpath unit is exactly the kind of stolen property the Empire never stops looking for.",
+ fun:"B2EMO's wheezy, stammering voice was never meant to make it to air — puppeteer Dave Chapman (one of BB-8's two performers in The Force Awakens) recorded his lines on set only as a temporary scratch track. Tony and John Gilroy liked the performance so much they called to tell him the voice was staying."},
+{id:"aldhani",era:"s1",cat:"andor",gate:{ep:6},file:"S1 · E4–6 · ALDHANI",title:"The Aldhani Heist",
+ blurb:"Posing as 'Clem,' Cassian joins Vel Sartha's cell — Cinta, Nemik, Skeen, Taramyn, inside-man Gorn — and robs an Imperial garrison of a full sector payroll (roughly eighty million credits) under the Eye of Aldhani — a sky that opens once every three years.",
+ more:"The idealist Nemik is crushed in the escape and wills Cassian his manifesto — the argument that tyranny requires constant effort, and that countless small, uncoordinated acts of defiance will eventually flood the Empire's ability to control. Skeen tries to steal the take; Cassian executes him and walks away paid. For Luthen, the money was never the whole point.",
+ fun:"The Eye of Aldhani was Season 1's longest-gestating visual: look-development talks with Tony Gilroy stretched over nearly a year before the sequence was shot, and the design had to be locked early enough that the cinematographers knew what light they were pretending to shoot under in the Scottish Highlands."},
+{id:"pord",era:"s1",cat:"galaxy",gate:{ep:7},file:"S1 · E7 · IMPERIAL RESPONSE",title:"P.O.R.D. — The Overreaction",
+ blurb:"The Empire answers Aldhani with the Public Order Resentencing Directive: sentences doubled and retroactive, dissent reclassified as terror, the ISB unleashed.",
+ more:"This is the series' engine of radicalization. The crackdown designed to smother rebellion manufactures it at scale — and, with perfect irony, it's what sweeps Cassian himself into the prison system within the very same episode."},
+{id:"narkina",era:"s1",cat:"andor",gate:{ep:10},file:"S1 · E7–10 · NARKINA 5",title:"One Way Out",
+ blurb:"Arrested on a beach town for nothing, sentenced to six years under a fake name, Cassian is fed into a spotless labor prison run on electrified floors — and learns what the sentences are really worth.",
+ more:"Floor manager Kino Loy keeps order by believing release exists. When the men learn no one ever leaves, Kino leads the breakout, voicing the revolt — then stops at the water's edge, unable to swim. The episode leaves him there. Cassian escapes with Ruescott Melshi. The same night, Luthen meets his mole inside the ISB, Lonni Jung, and answers the question of what he has sacrificed: every trace of peace, decency, and credit — a life burned for a sunrise he knows he'll never see.",
+ fun:"Andy Serkis tried multiple deliveries of Kino's gutting final line — angry, devastated — before landing on the eerily serene reading director Toby Haynes called inspired. The ambiguity is deliberate."},
+{id:"kreegyr",era:"s1",cat:"andor",gate:{ep:12},file:"S1 · E10–12 · SPELLHAUS",title:"The Kreegyr Arithmetic",
+ blurb:"The ISB learns of Anto Kreegyr's planned raid on the Spellhaus power station. Warning him would expose Luthen's mole — so Luthen lets fifty men fly into a waiting slaughter.",
+ more:"He even persuades Saw Gerrera to stand down rather than join the doomed attack. It's the coldest math in the series: the network outranks every person inside it, and the ISB's 'victory' convinces the Empire its methods work. Nobody wins except the secret."},
+{id:"rixroad",era:"s1",cat:"andor",gate:{ep:12},file:"S1 · E10–12 · RIX ROAD",title:"A Funeral Becomes an Uprising",
+ blurb:"Maarva Andor dies refusing to flee. Her recorded eulogy — a demand that Ferrix wake up and fight — detonates the town square while the ISB waits to trap her son.",
+ more:"Ferrix riots in the same street where Clem Andor was hanged. Wilmon's pipe bomb answers years of occupation; Dedra Meero is nearly trampled and is saved, of all people, by Syril. Cassian slips in, frees the tortured Bix, sends his people to safety — then walks into Luthen's ship and offers himself completely: take him in, or kill him. The season's last image, after the credits, shows what the prisoners were building: pieces of the Death Star's superlaser dish.",
+ fun:"The funeral march the Ferrix band plays is an original Nicholas Britell piece — 'Forming Up/Unto Stone We Are' — and it was the very first thing Britell and Tony Gilroy created together, composed before shooting began so the on-screen brass band and drumline could actually perform it live."},
+
+/* ---- S2 · 4 BBY ---- */
+{id:"tie",era:"y4",cat:"andor",gate:{ep:14},file:"S2 · E1–2 · SIENAR / YAVIN",title:"Stealing the TIE Avenger",
+ blurb:"Now a full operative, Cassian lifts a prototype TIE Avenger from a Sienar facility — then crash-lands into the Maya Pei Brigade, a rebel cell so paranoid and shambolic it nearly kills him over the prize.",
+ more:"The point is deliberate: a year after Ferrix, 'the rebellion' is still a quarreling archipelago of factions. Meanwhile the Ferrix survivors — Bix, Brasso, Wilmon, B2EMO — hide as undocumented workers on the farm world Mina-Rau.",
+ fun:"The TIE Avenger originated in the 1994 LucasArts flight-sim Star Wars: TIE Fighter — a beloved 30-year-old video game craft made live-action canon. The production built it as a rare full interior-and-exterior TIE set that could support its own weight on four points of its lower wings."},
+{id:"minarau",era:"y4",cat:"andor",gate:{ep:15},file:"S2 · E1–3 · MINA-RAU",title:"The Census Raid",
+ blurb:"An Imperial audit turns the refuge into a trap. An officer corners Bix and tries to rape her; she kills him. In the escape, Brasso — Ferrix's gentlest man — is gunned down.",
+ more:"Statelessness is the arc's real villain: no papers, no protection, no recourse. Bix's trauma from this raid, stacked on her Season 1 torture, drives her spiral through the rest of the series."},
+{id:"wedding",era:"y4",cat:"andor",gate:{ep:15},file:"S2 · E1–3 · CHANDRILA",title:"A Wedding on Chandrila",
+ blurb:"Mon Mothma marries her teenage daughter Leida into the family of oligarch Davo Sculdun — the price of laundering her rebel funding. Her oldest friend, banker Tay Kolma, has become a risk.",
+ more:"Luthen has Tay quietly removed on the drive home — Cinta at the wheel. Mon, understanding exactly what she has consented to, loses herself on the dance floor as the music swallows her. It's the series' portrait of complicity: the revolution's respectable face now has blood on it too."},
+{id:"kalkite",era:"y4",cat:"andor",gate:{ep:13},file:"S2 · E1 · A LOCKED ROOM",title:"The Kalkite Meeting",
+ blurb:"Director Orson Krennic secretly convenes ISB and propaganda chiefs: the planet Ghorman sits on kalkite, a mineral the Emperor's 'energy program' requires. Mining it will destroy the world. The plan: make the galaxy hate Ghorman first.",
+ more:"Dedra Meero is handed the Ghorman file, and the Empire begins manufacturing the very insurgency it will use as its excuse. Genocide is presented as an agenda item — calm, procedural, catered — and everyone in the room simply gets to work."},
+
+/* ---- S2 · 3 BBY ---- */
+{id:"ghorfront",era:"y3",cat:"andor",gate:{ep:16},file:"S2 · E4 · PALMO, GHORMAN",title:"Building the Ghorman Front",
+ blurb:"The ISB quietly arms and inflames Ghor nationalists while the Ministry of Enlightenment floods the HoloNet with anti-Ghorman propaganda. Syril Karn arrives undercover, believing he's finally the hero of his own story.",
+ more:"Dedra — now his partner — sends him without telling him what the operation is for. The resistance he infiltrates is real, brave, and doomed precisely because the Empire wants it to grow.",
+ fun:"The Ghor speak a fully constructed language created by dialect coach Marina Tyndall — it shares most of its vocabulary roots with Galactic Basic but runs on its own grammar and a French-inflected sound, and the cast had to learn it well enough to argue in it."},
+{id:"cinta",era:"y3",cat:"andor",gate:{ep:18},file:"S2 · E6 · A RAID GONE WRONG",title:"Cinta Falls",
+ blurb:"During a Ghorman weapons raid, a nervous recruit disobeys the no-blasters order. His single stray shot kills Cinta Kaz — the movement's most lethal operative — for nothing.",
+ more:"Vel is hollowed out; the recruit has to live with it. The series insists on this arithmetic: revolutions consume people through waste and accident as surely as through sacrifice, and grief gets no more meaning than the moment allows."},
+{id:"rhydo",era:"y3",cat:"andor",gate:{ep:17},file:"S2 · E5 · D'QAR",title:"Rhydonium and the Madness of Saw",
+ blurb:"Saw Gerrera and Wilmon steal volatile starship fuel; Saw deliberately breathes the fumes, embracing revolution as a sickness he refuses to be cured of.",
+ more:"'Revolution is not for the sane.' It's the series' portrait of what decades of unshared war do to a founder — a man who now loves the fight itself more than anything the fight could win."},
+{id:"sleeper",era:"y3",cat:"andor",gate:{ep:18},file:"S2 · E4–6 · CORUSCANT",title:"Sleeper Life",
+ blurb:"Cassian and Bix live under cover in the Imperial capital between missions. Bix, wrecked by nightmares and self-medication, hunts down Dr. Gorst — the ISB torturer who broke her — and kills him with his own machine.",
+ more:"Revenge doesn't heal her, and the show doesn't pretend it does. But the arc quietly builds the couple's last happy chapter — which makes what comes next land harder."},
+
+/* ---- S2 · 2 BBY ---- */
+{id:"massacre",era:"y2",cat:"andor",gate:{ep:20},file:"S2 · E7–8 · PALMO PLAZA",title:"The Ghorman Massacre",
+ blurb:"A peaceful crowd fills Palmo's plaza. An Imperial sniper fakes a provocation, and the garrison — including KX security droids — opens fire on civilians. It is a slaughter designed in a meeting room two years earlier.",
+ more:"Cassian is on-planet, sent to assassinate Dedra, and instead witnesses the machinery finish its work. Syril, realizing at last what he has served, breaks — confronts Dedra, stumbles into the carnage, attacks Cassian, and discovers the man he built his life around doesn't even know who he is. Moments later a Ghorman leader shoots him dead. One of the rampaging KX droids is rammed and disabled by rebels — and leaves the planet in Cassian's hold.",
+ fun:"The Ghorman plaza was Season 2's largest build — an over-500-foot outdoor set inspired by the architecture of Milan and Turin, constructed on the same Pinewood backlot that once held Jedha City for Rogue One. The city, its costumes, and its language were all designed by a team that knew from day one they were building it to stage its destruction."},
+{id:"senate",era:"y2",cat:"andor",gate:{ep:21},file:"S2 · E9 · THE SENATE",title:"Welcome to the Rebellion",
+ blurb:"Mon Mothma takes the Senate floor and says what no one else will: Ghorman was genocide, and its author is the Emperor himself. Then she runs.",
+ more:"Cassian extracts her from Coruscant through a net of ISB watchers — her own driver among them — and delivers her to Yavin 4, where the movement's public face finally joins its hidden body. On the way out of his old life, Cassian claims a familiar reprogrammed KX unit — K-2SO — as a partner.",
+ fun:"The speech's key line — 'the death of truth is the ultimate victory of evil' — was written by Dan Gilroy and filmed in May 2023, two full years before it aired. It became one of the rare TV monologues to earn its own standalone Wikipedia article."},
+{id:"alliance",era:"y2",cat:"galaxy",gate:{ep:21},file:"2 BBY · THE ALLIANCE",title:"An Alliance, Formally",
+ blurb:"Around Mon Mothma's defection, the scattered cells finally sign on to a common cause, and Yavin 4 becomes the base the movies know.",
+ more:"Star Wars Rebels dramatizes the same historical hinge from a different room — its 2017 episode 'Secret Cargo' had already shown Mon Mothma denouncing the Emperor and fleeing Coruscant, years before Andor staged it in full. Either way, this is the year 'rebels' becomes 'the Rebellion.'"},
+{id:"bixchooses",era:"y2",cat:"andor",gate:{ep:21},file:"S2 · E7–9 · YAVIN 4",title:"Bix Chooses",
+ blurb:"A Force healer tells Bix that Cassian is a messenger — meant for something he can't walk away from. So Bix decides for him: she disappears overnight, leaving a recording that she is choosing the rebellion so that he can't quit it for her.",
+ more:"She leaves no explanation he can follow — only the recording, and an empty room."},
+
+/* ---- S2 · 1 BBY ---- */
+{id:"lonni",era:"y1",cat:"andor",gate:{ep:22},file:"S2 · E10 · CORUSCANT",title:"The Mole's Last Trade",
+ blurb:"ISB supervisor Lonni Jung — Luthen's mole for years — pieces together the Emperor's secret from stolen files: an armored battle station built to kill worlds. He trades the intel for extraction for his family. Luthen thanks him, and kills him.",
+ more:"It's the coldest expression of the creed Luthen preached in Season 1: the secret must outrank every person who touches it, himself included. The dominoes start falling within hours."},
+{id:"axefalls",era:"y1",cat:"andor",gate:{ep:22},file:"S2 · E10 · THE GALLERY",title:"The Axe Falls",
+ blurb:"Dedra finally unmasks Axis and walks into Luthen's antique shop alone. He shreds his network's records in front of her — then drives an ancient blade into himself rather than face interrogation.",
+ more:"Kleya, in the series' most devastating sequence, infiltrates the Imperial hospital and switches off his life support: a mercy, a security protocol, and a daughter's goodbye at once, intercut with flashbacks of the massacre where he saved her. She walks out carrying the Death Star in her head. It is the only episode of the entire series without Cassian in it.",
+ fun:"Luthen's gallery is a museum of deep cuts: a Sith holocron and the Sankara Stones from Indiana Jones and the Temple of Doom sit in the back room, and this episode features a Kalikori — the Twi'lek heirloom from Star Wars Rebels. The set decorators' logic: nearly every piece comes from a culture the Empire crushed."},
+{id:"kleyaout",era:"y1",cat:"andor",gate:{ep:24},file:"S2 · E11–12 · LOCKDOWN",title:"Getting Kleya Out",
+ blurb:"With Coruscant sealed and the ISB hunting one woman, Cassian, Melshi, and K-2SO go in and pull Kleya from the noose — K-2 killing Dedra's lieutenant Heert on the way out.",
+ more:"The rescue is Andor in miniature: the network Luthen built spending itself to move a single truth one more step down the line."},
+{id:"eatsown",era:"y1",cat:"andor",gate:{ep:24},file:"S2 · E11–12 · ISB HEADQUARTERS",title:"The Empire Eats Its Own",
+ blurb:"Krennic strips Dedra of the investigation and has her buried in a labor prison identical to the one she helped fill. Major Partagaz listens to Nemik's recorded words about freedom being a natural instinct — and shoots himself.",
+ more:"The two most effective fascists in the series end as the system's leftovers: one caged by its secrecy, one crushed by the realization that the leak can never be contained. The rot Nemik described has reached the top floor."},
+{id:"kafrene",era:"y1",cat:"andor",gate:{ep:24},file:"S2 · E12 · YAVIN 4 → KAFRENE",title:"Yavin Hesitates. Kafrene Beckons.",
+ blurb:"Rebel command half-refuses to believe the 'planet-killer' rumor — Luthen burned too many bridges to be trusted posthumously. Mon Mothma vouches; Draven brings the contact — an informant named Tivik, waiting about a day on the Ring of Kafrene — and Bail Organa signs off on one meeting. Cassian flies.",
+ more:"That flight is the last thing the series shows him do. The finale's true last image is elsewhere: Bix in the Mina-Rau grain, B2EMO beside her, holding a baby Cassian will never know exists."},
+
+/* ---- ROGUE ONE ---- */
+{id:"ring",era:"r1",cat:"endgame",gate:{ep:24,movies:["r1"]},file:"ROGUE ONE · OPENING",title:"The Ring of Kafrene",
+ blurb:"Days after the finale, Cassian meets Tivik and learns the rest: an Imperial pilot has defected carrying a message from Galen Erso, the weapon's own architect. Cornered, Cassian kills the wounded informant to protect the secret — Luthen's arithmetic, fully inherited.",
+ more:"The film opens with the series' moral question already answered: this is what the messenger became. Everything left is the delivery.",
+ fun:"The baton-pass is deliberate: the finale has Draven say Tivik will wait only a day, placing the series' end roughly 24–48 hours before Rogue One's first scene — which is that meeting. The show never films it, because it already exists as the opening of a 2016 movie."},
+{id:"jedha",era:"r1",cat:"endgame",gate:{ep:24,movies:["r1"]},file:"ROGUE ONE · JEDHA",title:"Jedha",
+ blurb:"Jyn Erso — Galen's daughter — is recruited to reach Saw Gerrera, who holds the defector and the message. Krennic answers with a single-reactor test of the Death Star that vaporizes Jedha's Holy City. Saw refuses to run, and dies with it.",
+ more:"The kyber crystals strip-mined from Jedha and the kalkite bled from Ghorman meet inside the same weapon. Two of Andor's atrocities were always one project."},
+{id:"eadu",era:"r1",cat:"endgame",gate:{ep:24,movies:["r1"]},file:"ROGUE ONE · EADU → YAVIN",title:"Rogue One Goes Rogue",
+ blurb:"Galen Erso dies on Eadu — but his message reveals the flaw he hid in the reactor. When the Yavin council balks at open war, a volunteer squad steals a shuttle and jumps for the Imperial archive at Scarif under a stolen callsign: Rogue One. Melshi is aboard.",
+ more:"The council scene completes Andor's argument in reverse: the young Alliance now suffers the same institutional hesitation that once plagued the Empire — and once again it's the unauthorized, expendable people who act."},
+{id:"scarif",era:"r1",cat:"endgame",gate:{ep:24,movies:["r1"]},file:"ROGUE ONE · SCARIF",title:"Scarif",
+ blurb:"The archive raid. K-2SO dies holding the vault door. Melshi falls on the beach. Krennic is shot on the tower he built. Jyn transmits the plans as the Death Star fires on its own installation — and Cassian and Jyn die together, holding on, in the light of the thing they just doomed.",
+ more:"Cassian dies never knowing he's a father, never having found his sister, never seeing what the transmission buys. The series built him a five-year runway precisely so this ending would mean everything.",
+ fun:"Melshi almost didn't exist: Duncan Pow was originally cast as a Rebel pilot in Rogue One, and Tony Gilroy only wrote Melshi into the film during its famous reshoots — then brought him back for Andor's prison arc, retroactively giving Cassian and Melshi's camaraderie a shared trauma."},
+{id:"handoff",era:"r1",cat:"endgame",gate:{ep:24,movies:["r1"]},file:"ROGUE ONE · FINAL MINUTES",title:"Hope, Handed Off",
+ blurb:"The stolen plans race through the Tantive IV to a princess in white. The relay that began with a frightened mole in a Coruscant undercity ends in the hands of Leia Organa — minutes before A New Hope begins.",
+ more:"Ask her what they've been given, and her answer is the whole thesis of both stories in a single word."},
+
+/* ---- AFTER ---- */
+{id:"sunrise",era:"after",cat:"endgame",gate:{ep:24,movies:["r1","anh"]},file:"0 BBY · A NEW HOPE",title:"The Sunrise · Battle of Yavin",
+ blurb:"Using the flaw Galen hid and the plans the relay carried, Luke Skywalker destroys the Death Star. Ferrix, Aldhani, Narkina, Ghorman, Scarif — every act of defiance the series catalogued detonates in a single shot.",
+ more:"This is the dawn Luthen bought and never saw, the calendar's zero point, the reason every date on this page counts down to here."},
+{id:"endor",era:"after",cat:"galaxy",gate:{ep:24,movies:["r1","rotj"]},file:"4 ABY · ENDOR",title:"The Empire Falls",
+ blurb:"Four years on, the Emperor dies above Endor and the machine finally breaks. Mon Mothma — one of the only founders who survived from the whisper years — leads the New Republic that follows.",
+ more:"Kleya, Vel, Wilmon, and Bix all outlive the war the series showed them start. And somewhere on Mina-Rau, Cassian's child grows up in a galaxy their father freed and never saw."}
+];
+
+const RELAY=[
+ {n:"01",t:"Lonni Jung",gate:{ep:22},p:"ISB mole. Steals the Emperor's secret from inside the bureau — and is killed by his own handler to contain it.",imp:false},
+ {n:"02",t:"Luthen Rael",gate:{ep:22},p:"Receives the intel, burns his network, and takes his own life rather than surrender it.",imp:false},
+ {n:"03",t:"Kleya Marki",gate:{ep:24},p:"Memorizes the chain — Ghorman's mineral, Jedha's kyber, Krennic, a scientist named Erso — and carries it out under lockdown.",imp:false},
+ {n:"04",t:"Cassian Andor",gate:{ep:24},p:"Pulls Kleya off Coruscant and delivers the warning to a skeptical Yavin.",imp:false},
+ {n:"05",t:"Yavin Command",gate:{ep:24},p:"Half-believes it. Mon Mothma vouches; Draven authorizes exactly one meeting.",imp:false},
+ {n:"06",t:"Tivik · Kafrene",gate:{ep:24,movies:["r1"]},p:"Names the defector and Galen Erso — Rogue One's first scene, days after the finale.",imp:false},
+ {n:"07",t:"Jyn & Rogue One",gate:{movies:["r1"]},p:"Galen's message reveals the hidden flaw; the volunteer squad hits the Scarif archive.",imp:false},
+ {n:"08",t:"The Transmission",gate:{movies:["r1"]},p:"K-2SO, Melshi, Jyn, Cassian: everyone falls, but the plans leave the tower.",imp:true},
+ {n:"09",t:"Leia Organa",gate:{movies:["r1"]},p:"The Tantive IV corridor. The plans reach the princess minutes before A New Hope.",imp:true},
+ {n:"10",t:"Luke · The Sunrise",gate:{movies:["r1","anh"]},p:"One proton torpedo through Galen's flaw. The Death Star dies at the Battle of Yavin.",imp:true}
+];
+
+const CHARACTERS=[
+ {id:"cassian",name:"Cassian Andor",
+  stages:[
+   {gate:{ep:1},role:"THIEF · FERRIX",p:"A scavenger and hustler searching brothel towns for the little sister he lost on Kenari — until one bad night leaves two corpos dead behind him."},
+   {gate:{ep:12},role:"THIEF → REBEL",p:"Ran once, got paid once, got caged once. Prison taught him what the Empire is; a funeral taught him what he owes. He walks onto Luthen's ship and offers everything."},
+   {gate:{ep:24},role:"REBEL CAPTAIN · MESSENGER",p:"Five years from killing two corpos in a gutter to carrying the Death Star's secret to a skeptical Yavin — then flying for Kafrene to hear the rest."},
+   {gate:{ep:24,movies:["r1"]},role:"REBEL CAPTAIN · MESSENGER",p:"Five years from killing two corpos in a gutter to carrying the Death Star's secret. Dies on the Scarif beach with Jyn as the plans escape — never knowing he's a father."}],
+  fate:{gate:{ep:24,movies:["r1"]},fate:"rogue",badge:"FALLS AT SCARIF"}},
+ {id:"luthen",name:"Luthen Rael",
+  stages:[
+   {gate:{ep:3},role:"ANTIQUARIAN · THE BUYER",p:"A Coruscant gallery owner with a second face: the stranger who walks into a Ferrix raid to buy a stolen Starpath unit — and leaves with the thief instead."},
+   {gate:{ep:10},role:"SPYMASTER · 'AXIS'",p:"The rebellion's hidden nervous system. Recruits the desperate, spends the loyal, and names his own price out loud: calm, kindness, kinship — burned for a sunrise he'll never see."},
+   {gate:{ep:22},role:"SPYMASTER · 'AXIS'",p:"An ex-Imperial deserter doing penance at galactic scale. Kills his own mole to protect the secret, shreds his files, and chooses his own end rather than be taken — finished as a mercy by the girl he saved, erased even from the movement's memory."}],
+  fate:{gate:{ep:22},fate:"andor",badge:"FALLS IN ANDOR · 1 BBY"}},
+ {id:"kleya",name:"Kleya Marki",
+  stages:[
+   {gate:{ep:4},role:"GALLERY ASSISTANT",p:"Luthen's poised front-of-house on Coruscant — and the cold, precise voice on the other end of the network's comms. Nobody's assistant, really."},
+   {gate:{ep:22},role:"THE NETWORK'S TRUE MIND",p:"The girl Luthen saved becomes the operator who ends his life as a mercy — a daughter's goodbye and a security protocol at once — and walks out carrying the Death Star in her head."},
+   {gate:{ep:24},role:"THE NETWORK'S TRUE MIND",p:"Carried the network's final secret through a planetary lockdown and delivered it to Yavin. Survives the series; her war goes on."}],
+  fate:{gate:{ep:24},fate:"sunrise",badge:"SEES THE SUNRISE"}},
+ {id:"mon",name:"Mon Mothma",
+  stages:[
+   {gate:{ep:4},role:"SENATOR · QUIET FUNDER",p:"Chandrila's impeccable senator, losing vote after vote by day — and smuggling her family's fortune to Luthen's network through the gallery's front door."},
+   {gate:{ep:15},role:"SENATOR · COMPLICIT",p:"Sold her daughter's future to launder the movement's money, and learned on a dance floor what her consent costs. The revolution's respectable face has blood on it now."},
+   {gate:{ep:21},role:"SENATOR → ALLIANCE LEADER",p:"Named the Emperor a monster on the Senate floor, then ran — from her own driver, her own life — to lead the Rebellion openly from Yavin."}],
+  fate:{gate:{ep:24},fate:"sunrise",badge:"SEES THE SUNRISE"}},
+ {id:"bix",name:"Bix Caleen",
+  stages:[
+   {gate:{ep:1},role:"MECHANIC · FERRIX",p:"Salvage dealer with dangerous contacts — the one who knows how to reach the buyer, and the first to see what Cassian could be worth to him."},
+   {gate:{ep:12},role:"MECHANIC · SURVIVOR",p:"Tortured by the ISB for a name she didn't have. Carried out of Ferrix broken but alive — the uprising's first rescue."},
+   {gate:{ep:18},role:"SURVIVOR · HUNTER",p:"The nightmares didn't stop, so she went to their source: Dr. Gorst, strapped into his own machine. Revenge didn't heal her. She did it anyway."},
+   {gate:{ep:24},role:"SURVIVOR · MOTHER",p:"Chose the rebellion for Cassian by leaving him — and raises their child in the Mina-Rau grain. The series' final image belongs to her."}],
+  fate:{gate:{ep:24},fate:"sunrise",badge:"SEES THE SUNRISE"}},
+ {id:"dedra",name:"Dedra Meero",
+  stages:[
+   {gate:{ep:4},role:"ISB SUPERVISOR",p:"The first Imperial to see the rebellion as one network instead of scattered crimes — and to fight her own bureau's turf wars to prove it."},
+   {gate:{ep:20},role:"ISB SUPERVISOR · ARCHITECT",p:"Given the Ghorman file, she executed it: years of manufactured insurgency ending in a plaza full of bodies. The pattern-seer became the pattern."},
+   {gate:{ep:24},role:"ISB SUPERVISOR · PRISONER",p:"Unmasked Axis — and touched the one secret the Empire punishes its own for knowing. Ends caged in the same kind of labor prison she helped keep full."}],
+  fate:{gate:{ep:24},fate:"other",badge:"IMPRISONED"}},
+ {id:"syril",name:"Syril Karn",
+  stages:[
+   {gate:{ep:1},role:"DEPUTY INSPECTOR · TRUE BELIEVER",p:"A corporate cop who refuses to bury a double murder because rules should mean something. Order is his religion; the file on Cassian Andor becomes his scripture."},
+   {gate:{ep:12},role:"TRUE BELIEVER · OBSESSED",p:"Lost everything chasing Cassian, found purpose worshipping Dedra — and saved her life in a riot. The machine finally smiled at him. It was measuring him for a slot."},
+   {gate:{ep:20},role:"THE DISPOSABLE TOOL",p:"Sent undercover to Ghorman believing he was the hero. Learned in a collapsing plaza what he'd served — and died unrecognized by the man who defined his life."}],
+  fate:{gate:{ep:20},fate:"andor",badge:"FALLS IN ANDOR · 2 BBY"}},
+ {id:"saw",name:"Saw Gerrera",
+  stages:[
+   {gate:{ep:8},role:"PARTISAN · THE FIRST EXTREMIST",p:"The original rebel — decades in, trusts no one, works with no one. Luthen comes to him for an alliance and leaves with a lecture on purity."},
+   {gate:{ep:17},role:"THE FIRST EXTREMIST",p:"Huffs starship fuel and calls revolution a sickness he refuses to be cured of. Too broken for the Alliance he preceded, too devoted to quit."}],
+  fate:{gate:{movies:["r1"]},fate:"rogue",badge:"FALLS ON JEDHA"}},
+ {id:"k2so",name:"K-2SO",
+  stages:[
+   {gate:{ep:20},role:"KX SECURITY DROID",p:"One of the Imperial enforcer units loosed on the Ghorman crowd — rammed, disabled, and hauled offworld in a rebel hold. The Empire built it; the Empire will regret it."},
+   {gate:{ep:21},role:"IMPERIAL DROID → PARTNER",p:"Reprogrammed on Yavin into Cassian's towering, tactless conscience. First words: polite. Second words: statistically unwelcome."}],
+  fate:{gate:{movies:["r1"]},fate:"rogue",badge:"FALLS AT SCARIF"}},
+ {id:"vel",name:"Vel Sartha",
+  stages:[
+   {gate:{ep:4},role:"CELL LEADER · ALDHANI",p:"The hardened leader of the Aldhani cell, drilling seven strangers for a garrison heist — with a privileged past she's careful to bury."},
+   {gate:{ep:18},role:"FIELD COMMANDER",p:"Mon Mothma's cousin — led the Aldhani heist, lost Cinta to a pointless accident on Ghorman. Grief gets no meaning; the work continues."},
+   {gate:{ep:24},role:"FIELD COMMANDER",p:"Withdrew to train the next generation on Yavin, and shares the finale's quiet toast to the fallen. Survives everything she started."}],
+  fate:{gate:{ep:24},fate:"sunrise",badge:"SEES THE SUNRISE"}},
+ {id:"cinta",name:"Cinta Kaz",
+  stages:[
+   {gate:{ep:4},role:"OPERATIVE",p:"The Aldhani cell's coldest, surest hand — a medic who buried her whole family and made the cause the only thing she'll answer to. Vel comes second, and knows it."},
+   {gate:{ep:18},role:"OPERATIVE",p:"Aldhani, the Kolma assassination — the movement's most lethal instrument, killed by a nervous recruit's stray shot in a raid that bought nothing."}],
+  fate:{gate:{ep:18},fate:"andor",badge:"FALLS IN ANDOR · 3 BBY"}},
+ {id:"maarva",name:"Maarva Andor",
+  stages:[
+   {gate:{ep:2},role:"MOTHER OF FERRIX",p:"Salvaged a boy off a dying world and raised him in a town that rings anvils for its dead. Old now, stubborn always — and done pretending the Empire is weather."},
+   {gate:{ep:12},role:"MOTHER OF FERRIX",p:"Refused to run. Her recorded eulogy turned her own funeral into the Ferrix uprising and turned her son, at last, into a rebel."}],
+  fate:{gate:{ep:11},fate:"andor",badge:"FALLS IN ANDOR · 5 BBY"}},
+ {id:"nemik",name:"Karis Nemik",
+  stages:[
+   {gate:{ep:4},role:"THE IDEALIST",p:"The Aldhani cell's young theorist, writing a manifesto he hasn't titled yet between navigation checks. Believes freedom is a pure idea. Nobody's laughing later."},
+   {gate:{ep:6},role:"THE MANIFESTO",p:"Crushed in the escape he navigated, he willed Cassian the manifesto itself — an argument that would have to wait for its reader."},
+   {gate:{ep:24},role:"THE MANIFESTO",p:"His recorded ideas outlive everyone who mocked them, spreading through the Empire's own channels — the last voice Partagaz ever hears."}],
+  fate:{gate:{ep:6},fate:"andor",badge:"FALLS IN ANDOR · 5 BBY"}},
+ {id:"kino",name:"Kino Loy",
+  stages:[
+   {gate:{ep:8},role:"NARKINA 5 FLOOR MANAGER",p:"Day-shift boss of Unit Five-Two-D, keeping order by believing in release — the Empire's most useful prisoner."},
+   {gate:{ep:10},role:"THE VOICE OF THE BREAKOUT",p:"Kept the prison running by believing in release; led the breakout when the lie collapsed. Last seen at the water's edge, unable to swim."}],
+  fate:{gate:{ep:10},fate:"other",badge:"FATE UNKNOWN"}},
+ {id:"brasso",name:"Brasso",
+  stages:[
+   {gate:{ep:1},role:"FERRIX'S STEADY HAND",p:"The friend who carries what others can't — a cover story, a heavy load, an old woman's dignity — without ever asking why."},
+   {gate:{ep:12},role:"FERRIX'S STEADY HAND",p:"Carried Maarva's last message to her son, and carried the brick that answered the Empire at her funeral."},
+   {gate:{ep:15},role:"FERRIX'S STEADY HAND",p:"Carried the community itself into hiding on Mina-Rau — and was gunned down protecting the people he'd carried."}],
+  fate:{gate:{ep:15},fate:"andor",badge:"FALLS IN ANDOR · 4 BBY"}},
+ {id:"wilmon",name:"Wilmon Paak",
+  stages:[
+   {gate:{ep:12},role:"BOMB-MAKER · FERRIX",p:"The boy whose father the Empire hanged in the square — and whose pipe bomb answered years of occupation at Maarva's funeral."},
+   {gate:{ep:17},role:"BOMB-MAKER → SOLDIER",p:"Luthen's field hand and Saw's reluctant apprentice, mixing fuel for a man who breathes it. The kid from Ferrix is becoming ordnance himself."},
+   {gate:{ep:24},role:"SOLDIER",p:"Grew from Ferrix's angriest orphan into a rebel the finale trusts with its rescue. Survives the series — one of the few who watched it all begin."}],
+  fate:{gate:{ep:24},fate:"sunrise",badge:"SEES THE SUNRISE"}},
+ {id:"lonnij",name:"Lonni Jung",
+  stages:[
+   {gate:{ep:4},role:"ISB SUPERVISOR",p:"A quiet, unremarkable supervisor in Partagaz's briefing room. Keeps his head down. Files his reports. Goes home to his family."},
+   {gate:{ep:10},role:"THE MOLE",p:"Luthen's man inside the ISB for six years — recruited before his daughter was born, and reminded, in an elevator, exactly what his safety costs the man who runs him."},
+   {gate:{ep:22},role:"THE MOLE",p:"Found the Emperor's secret, traded it for his family's extraction — and was killed by the man he'd served, because the secret outranks everyone."}],
+  fate:{gate:{ep:22},fate:"andor",badge:"FALLS IN ANDOR · 1 BBY"}},
+ {id:"melshi",name:"Ruescott Melshi",
+  stages:[
+   {gate:{ep:8},role:"PRISONER · TABLE FIVE",p:"Cassian's neighbor on the Narkina 5 line — sharp, bitter, and counting exactly how much of his sentence keeps growing."},
+   {gate:{ep:10},role:"ESCAPEE",p:"Swam out of Narkina 5 at Cassian's side. 'One way out' was his creed too."},
+   {gate:{ep:24},role:"PRISONER → SERGEANT",p:"From the prison floor to rebel sergeant — the man Cassian trusts at his shoulder when everything is on the line."}],
+  fate:{gate:{movies:["r1"]},fate:"rogue",badge:"FALLS AT SCARIF"}},
+ {id:"krennic",name:"Orson Krennic",
+  stages:[
+   {gate:{ep:13},role:"DIRECTOR · ADVANCED WEAPONS",p:"The immaculate director who convenes genocide as a working lunch: Ghorman's mineral for the Emperor's 'energy program,' hatred manufactured on schedule."},
+   {gate:{ep:24},role:"DIRECTOR · ADVANCED WEAPONS",p:"Author of the Ghorman plan and keeper of the Death Star's secrecy — so jealous of it he cages his own investigator for touching the file."}],
+  fate:{gate:{movies:["r1"]},fate:"rogue",badge:"FALLS AT SCARIF"}},
+ {id:"partagaz",name:"Major Partagaz",
+  stages:[
+   {gate:{ep:4},role:"ISB CHIEF · THE PROFESSOR",p:"The bureau's calm professor of oppression, who defines security as a sense of unease — 'healthcare for the Empire' — and grades his supervisors like students."},
+   {gate:{ep:24},role:"ISB CHIEF",p:"When the leak proves uncontainable, the calm professor listens to Nemik's manifesto — the rot he was hired to stop, describing him — and ends his own file."}],
+  fate:{gate:{ep:24},fate:"andor",badge:"FALLS IN ANDOR · 1 BBY"}}
+];
+
+const FACTS=[
+ {id:"fiveseasons",tag:"ORIGINS",gate:null,p:"Andor was originally pitched as a five-season series — one year of Cassian's life per season. Halfway through shooting Season 1 during COVID, Tony Gilroy realized the scale made that impossible ('We had no idea what we were getting into'), so the remaining four years were compressed into one boldly structured second season."},
+ {id:"budget",tag:"PRODUCTION",gate:null,p:"Andor is the most expensive Star Wars project ever made — roughly $645 million across both seasons per Forbes' analysis of UK production filings. Gilroy's defense of the price tag: you're getting five years of story and a war for it."},
+ {id:"ferrixset",tag:"DESIGN",gate:null,p:"Ferrix wasn't a soundstage or a StageCraft video wall — it was a functional brick town built outdoors on a backlot, with real streets, working doors, and enough coverage to shoot in any direction. Gilroy insisted on physical places; Andor famously avoided the Volume entirely."},
+ {id:"lunaep",tag:"ORIGINS",gate:null,p:"Diego Luna isn't just the star — he's an executive producer, and has said the credit was a dealbreaker: after playing Cassian as a stranger's creation in Rogue One, he wanted a real say in who this man had been."},
+ {id:"gilroyfixer",tag:"ORIGINS",gate:null,p:"Tony Gilroy entered Star Wars as a fixer — brought in to substantially rewrite and reshoot Rogue One late in production. The pitch that became Andor grew out of the question he couldn't shake afterward: what kind of life produces a man like that?"},
+ {id:"britell",tag:"SCORE",gate:null,p:"Composer Nicholas Britell (Succession, Moonlight) broke a franchise rule by refusing one fixed main theme: Season 1's title music is a different arrangement every episode, evolving with the story — so the show's identity is change itself."},
+ {id:"nojedi",tag:"LORE",gate:null,p:"Andor is the first live-action Star Wars production with no Jedi and no lightsaber across all 24 episodes. Gilroy was blunt about the reason: the galaxy has trillions of ordinary people who've never met a Jedi — this is their war."},
+ {id:"release",tag:"PRODUCTION",gate:null,p:"Season 2 used a release format new to Star Wars: twelve episodes dropped three at a time over four weeks (April 22 – May 13, 2025), one complete story arc — and one year of the timeline — per week."},
+ {id:"emmys",tag:"LEGACY",gate:null,p:"Andor became an awards juggernaut by Star Wars TV standards: Season 1 earned 8 Emmy nominations including Outstanding Drama Series, and Season 2 followed with 14 more in 2025 — the most-nominated Star Wars series ever."},
+ {id:"dulau",tag:"CASTING",gate:{ep:4},p:"Kleya actress Elizabeth Dulau had never appeared on screen before Andor — she graduated from RADA in 2020 almost straight into Luthen's gallery, holding her own opposite Stellan Skarsgård in her first-ever role."},
+ {id:"serkis",tag:"CASTING",gate:{ep:8},p:"Andy Serkis nearly turned down Kino Loy because he'd already played Supreme Leader Snoke and didn't want to double-dip in the galaxy — until he read the prison scripts. It became his first major Star Wars role performed entirely in his own face."},
+ {id:"niamos",tag:"SCORE",gate:{ep:7},p:"That thumping club track in the very first episode is an actual in-universe pop song called 'Niamos!' — sharing its name with the resort planet Cassian later hides on. Gilroy has confirmed it's canonically a galactic hit, and Britell released multiple in-universe remixes, including a 'Morlana Club Mix.'"},
+ {id:"narkinadesign",tag:"DESIGN",gate:{ep:8},p:"Production designer Luke Hull built Narkina 5 to feel 'a little bit like a lab and a little bit like an asylum' — and once the team ditched bars, the electrified floor became the cage, eliminating armed guards entirely. The actors genuinely worked barefoot on those unheated metal floors for weeks."},
+ {id:"crunchies",tag:"DESIGN",gate:{ep:9},p:"Syril's sad breakfasts are Star Wars' iconic blue milk poured over an in-universe cereal officially named 'Crunchies,' its box prototyped in cardboard by graphic designer Barry Gingell. Kyle Soller says the prop cereal tasted 'like dreams and unicorns' — and by episode 9 Syril slurps it face-first specifically to drown out his mother."},
+ {id:"manifesto",tag:"LORE",gate:{ep:12},p:"Nemik's manifesto is pointedly untitled — 'Haven't titled it yet. I've been waiting' — though fans know it as 'The Trail of Political Consciousness,' from his own description. Critics noted its closing word, 'Try,' reads as a quiet rebuttal of Yoda's 'Do or do not, there is no try.'"},
+ {id:"postcredits",tag:"ORIGINS",gate:{ep:12},p:"The Season 1 post-credits reveal was baked in early: Gilroy says the team decided 'they should be building the Death Star' almost as soon as they invented the prison — then realized 'we oughta show that.' The crueler layer, per Gilroy: Cassian will never know what his hands helped build."},
+ {id:"wannsee",tag:"HISTORY",gate:{ep:20},p:"Gilroy confirmed the secret meeting where Krennic lays out the Ghorman plan was directly modeled on the Wannsee Conference — the 1942 meeting where Nazi officials calmly planned the Final Solution — and the anti-Ghor propaganda campaign was built from real fascist playbooks."},
+ {id:"wegmassacre",tag:"LORE",gate:{ep:20},p:"The Ghorman Massacre dates back to the 1990 Rebel Alliance Sourcebook for West End Games' tabletop RPG, where Governor Tarkin lands his warship on peaceful protesters — modeled on the real 1919 Jallianwala Bagh massacre in Amritsar. Andor keeps that older atrocity as history and stages its new massacre on the same plaza a generation later."},
+ {id:"rebelsloop",tag:"LORE",gate:{ep:21},p:"Star Wars Rebels got there first: its 2017 episode 'Secret Cargo' showed Mon Mothma denouncing the Emperor over Ghorman and fleeing Coruscant — voiced by Genevieve O'Reilly. Eight years later, Andor dramatized in full the same turning point the animated series had only excerpted."},
+ {id:"oreilly",tag:"CASTING",gate:{movies:["r1"]},p:"Genevieve O'Reilly has played Mon Mothma for over 20 years: cast in Revenge of the Sith (2005), her speaking scenes were cut — George Lucas personally wrote to tell her — surviving only as DVD extras. She returned in Rogue One eleven years later, voiced her in Rebels, and finally got to fully realize her in Andor: 'I've closed the circle.'"},
+ {id:"mendelsohn",tag:"CASTING",gate:{movies:["r1"]},p:"When Gilroy asked Ben Mendelsohn to return as Krennic, the reported answer was 'F*** yeah, absolutely' — before he knew the story. His one request, after being 'a middle manager in Rogue One': pump up the volume."},
+ {id:"tudyk",tag:"CASTING",gate:{movies:["r1"]},p:"Alan Tudyk performed K-2SO on set via full-body motion capture wearing the very same stilts he used in Rogue One nearly a decade earlier — original stickers and scuffs included. The performance earned him a 2025 Emmy nomination."},
+ {id:"sixyears",tag:"ORIGINS",gate:{ep:3,movies:["r1"]},p:"Cassian's throwaway Rogue One line — 'I've been in this fight since I was six years old' — is the seed Gilroy grew the entire Kenari backstory from. It also had to solve a second mystery: the backstory needed to explain Diego Luna's accent, which is why young Kassa speaks a non-Basic Kenari language."}
+];
+
+return {ERAS,EVENTS,RELAY,CHARACTERS,FACTS,EP_TITLES,MOVIES};
+})();
+</script>
+
+<script id="app">
+(function(){
+"use strict";
+if(!window.ANDOR_DATA){console.warn("data not loaded");return}
+const {ERAS,EVENTS,RELAY,CHARACTERS,FACTS,EP_TITLES,MOVIES}=window.ANDOR_DATA;
+
+/* ============================== STATE ============================== */
+const KEY="andor-sunrise-v1";
+const DEFAULT={ep:0,movies:{rots:false,r1:false,anh:false,rotj:false},read:{},everSet:false};
+let state=load();
+function load(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(!raw)return JSON.parse(JSON.stringify(DEFAULT));
+    const s=JSON.parse(raw);
+    const mv=(s.movies&&typeof s.movies==="object")?s.movies:{};
+    const rd=(s.read&&typeof s.read==="object"&&!Array.isArray(s.read))?s.read:{};
+    return {ep:Math.max(0,Math.min(24,s.ep|0)),
+      movies:{rots:!!mv.rots,r1:!!mv.r1,anh:!!mv.anh,rotj:!!mv.rotj},
+      read:rd,everSet:!!s.everSet};
+  }catch(e){return JSON.parse(JSON.stringify(DEFAULT))}
+}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+
+/* ============================== GATES ============================== */
+const MOVIE_NAMES={rots:"REVENGE OF THE SITH",r1:"ROGUE ONE",anh:"A NEW HOPE",rotj:"RETURN OF THE JEDI"};
+function epLabel(n){return n<=12?`S1 · E${String(n).padStart(2,"0")}`:`S2 · E${String(n-12).padStart(2,"0")}`}
+function unlocked(g){
+  if(!g)return true;
+  if(g.ep&&state.ep<g.ep)return false;
+  if(g.movies&&!g.movies.every(m=>state.movies[m]))return false;
+  return true;
+}
+function gateLabel(g){
+  if(!g)return"";
+  const parts=[];
+  if(g.ep)parts.push(epLabel(g.ep));
+  if(g.movies)g.movies.forEach(m=>parts.push(MOVIE_NAMES[m]));
+  return parts.join(" + ");
+}
+
+/* levels: how much of an item is currently revealed */
+function evLevel(ev){return unlocked(ev.gate)?1:0}
+function chLevel(c){
+  let l=c.stages.filter(s=>unlocked(s.gate)).length;
+  if(l>0&&unlocked(c.fate.gate))l++;
+  return l;
+}
+function factLevel(f){return unlocked(f.gate)?1:0}
+function relayLevel(r){return unlocked(r.gate)?1:0}
+const allItems=()=>[
+  ...EVENTS.map(e=>({id:"ev-"+e.id,level:evLevel(e)})),
+  ...CHARACTERS.map(c=>({id:"ch-"+c.id,level:chLevel(c)})),
+  ...FACTS.map(f=>({id:"fx-"+f.id,level:factLevel(f)})),
+  ...RELAY.map((r,i)=>({id:"rl-"+i,level:relayLevel(r)})),
+];
+function isNew(id,level){return level>0&&(state.read[id]||0)<level}
+function markRead(id,level){if(level>0&&(state.read[id]||0)<level){state.read[id]=level;persist();updateCounts()}}
+function baselineAll(){allItems().forEach(it=>{if(it.level>0)state.read[it.id]=it.level});persist()}
+function unreadCount(){return allItems().filter(it=>isNew(it.id,it.level)).length}
+function declassPct(){
+  const items=allItems();
+  const un=items.filter(i=>i.level>0).length;
+  return Math.round(100*un/items.length);
+}
+
+/* ============================== REDACTION ============================== */
+function hash(s){let h=7;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return Math.abs(h)}
+function bars(seed,count,minw,maxw){
+  const h=hash(seed);let out="";
+  for(let i=0;i<count;i++){
+    const w=(minw+((h>>(i*3))%97)/97*(maxw-minw)).toFixed(1);
+    out+=`<span class="bar" style="width:${w}ch"></span>`;
+  }
+  return `<span aria-label="redacted">${out}</span>`;
+}
+function sealNote(g){return `<div class="unlockreq">DECLASSIFIES AT: <b>${gateLabel(g)}</b></div>`}
+
+/* ============================== RENDER ============================== */
+const $=(q,el)=>(el||document).querySelector(q);
+const $$=(q,el)=>Array.from((el||document).querySelectorAll(q));
+const CAT_NAMES={andor:"ANDOR",galaxy:"WIDER GALAXY",endgame:"ROGUE ONE & BEYOND"};
+let currentCat="all",currentFate="all";
+
+function renderTimeline(){
+  const tl=$("#timeline");tl.innerHTML="";
+  ERAS.forEach(era=>{
+    const sec=document.createElement("section");
+    sec.className="era";sec.id=era.id;sec.dataset.meter=era.meter;sec.dataset.sub=era.sub;
+    const titleOpen=unlocked(era.gateTitle),full=unlocked(era.gateFull);
+    let h2,intro;
+    if(!titleOpen){
+      sec.classList.add("sealed-era");
+      h2=bars("t-"+era.id,3,4,9);
+      intro=`${bars("i-"+era.id,12,2,7)}<div class="unlockreq">ERA SEALED · DECLASSIFIES AT: <b>${gateLabel(era.gateTitle)}</b></div>`;
+    }else{
+      h2=era.title;
+      intro=full?era.intro:era.teaser;
+    }
+    sec.innerHTML=`<div class="era-head"><div class="stamp">${era.stamp}</div><h2>${h2}</h2><p class="intro">${intro}</p></div><div class="track" style="--spine:${era.spine}"></div>`;
+    tl.appendChild(sec);
+  });
+  EVENTS.forEach(ev=>{
+    const track=$(`#${ev.era} .track`);if(!track)return;
+    const open=unlocked(ev.gate);
+    const div=document.createElement("div");
+    div.className="event"+(open?"":" locked sealed");
+    div.dataset.cat=ev.cat;div.dataset.id=ev.id;
+    const nw=open&&isNew("ev-"+ev.id,1);
+    div.dataset.new=nw?"1":"0";
+    if(open){
+      const fun=ev.fun?`<div class="prodfile"><span class="pf-k">◈ PRODUCTION FILE</span>${ev.fun}</div>`:"";
+      div.innerHTML=`<button class="card" aria-expanded="false">
+        <div class="meta"><span class="tag">${CAT_NAMES[ev.cat]}</span><span class="file">${ev.file}</span>${nw?'<span class="newpip">NEW INTEL</span>':""}</div>
+        <h3><span>${ev.title}</span><span class="chev">▸</span></h3>
+        <p class="blurb">${ev.blurb}</p>
+        <div class="more"><div class="more-inner">${ev.more}${fun}</div></div>
+        <div class="hint">TAP FOR FULL ENTRY</div>
+      </button>`;
+    }else{
+      div.innerHTML=`<div class="card sealedcard">
+        <div class="meta"><span class="tag">SEALED</span><span class="file">ISB FILE · ${bars("f-"+ev.id,1,4,7)}</span><span class="sealstamp">REDACTED</span></div>
+        <h3><span>${bars("h-"+ev.id,2+hash(ev.id)%3,3,8)}</span></h3>
+        <p class="blurb">${bars("b-"+ev.id,10+hash(ev.id)%6,2,7)}</p>
+        ${sealNote(ev.gate)}
+      </div>`;
+    }
+    track.appendChild(div);
+  });
+  applyCatFilter();
+}
+
+function renderRelay(){
+  const anyOpen=RELAY.some(r=>unlocked(r.gate));
+  $("#relaysub").innerHTML=anyOpen
+    ?"Andor&rsquo;s whole architecture is a hand-off: one stolen secret passed from person to person, each carrier paying for it. Scroll the chain →"
+    :"One secret, passed hand to hand, until it changes everything. Who carries it — and what each hand pays — stays sealed until you reach the series&rsquo; final days.";
+  const chain=$("#relaychain");chain.innerHTML="";
+  RELAY.forEach((r,i)=>{
+    const open=unlocked(r.gate);
+    const d=document.createElement("div");
+    d.className="node"+(r.imp?" imp":"")+(open?"":" sealednode");
+    d.dataset.id="rl-"+i;
+    if(open){
+      const nw=isNew("rl-"+i,1);
+      d.innerHTML=`<div class="n">${r.n}${nw?' <span class="newpip">NEW</span>':""}</div><h4>${r.t}</h4><p>${r.p}</p>`;
+    }else{
+      d.innerHTML=`<div class="n">${r.n} · SEALED</div><h4>${bars("rt"+i,2,3,7)}</h4><p>${bars("rp"+i,8,2,6)}</p><div class="unlockreq"><b>${gateLabel(r.gate)}</b></div>`;
+    }
+    chain.appendChild(d);
+  });
+}
+
+function renderChars(){
+  const grid=$("#chargrid");grid.innerHTML="";
+  CHARACTERS.forEach(c=>{
+    const stages=c.stages.filter(s=>unlocked(s.gate));
+    const d=document.createElement("div");
+    d.dataset.id=c.id;
+    if(!stages.length){
+      d.className="char sealedchar";d.dataset.fate="unknown";
+      d.innerHTML=`<h4>${bars("cn-"+c.id,2,3,6)}</h4><div class="role">DOSSIER SEALED</div><p>${bars("cp-"+c.id,7,2,6)}</p><span class="badge">IDENTITY WITHHELD</span>${sealNote(c.stages[0].gate)}`;
+    }else{
+      const st=stages[stages.length-1];
+      const fateOpen=unlocked(c.fate.gate);
+      const fate=fateOpen?c.fate.fate:"unknown";
+      const badge=fateOpen?c.fate.badge:"FATE · STILL SEALED";
+      const lvl=chLevel(c),nw=isNew("ch-"+c.id,lvl);
+      d.className="char";d.dataset.fate=fate;d.dataset.level=lvl;
+      d.innerHTML=`<h4>${c.name}${nw?' <span class="newpip">NEW</span>':""}</h4><div class="role">${st.role}</div><p>${st.p}</p><span class="badge">${badge}</span>`;
+    }
+    grid.appendChild(d);
+  });
+  applyFateFilter();
+}
+
+function renderFacts(){
+  const grid=$("#factgrid");grid.innerHTML="";
+  let open=0;
+  FACTS.forEach(f=>{
+    const d=document.createElement("div");
+    d.dataset.id=f.id;
+    if(unlocked(f.gate)){
+      open++;
+      const nw=isNew("fx-"+f.id,1);
+      d.className="fact";
+      d.innerHTML=`<div class="f-k">◈ ${f.tag}${nw?' <span class="newpip">NEW</span>':""}</div><p>${f.p}</p>`;
+    }else{
+      d.className="fact sealedfact";
+      d.innerHTML=`<div class="f-k">◈ SEALED</div><p>${bars("fp-"+f.id,9,2,7)}</p>${sealNote(f.gate)}`;
+    }
+    grid.appendChild(d);
+  });
+  $("#vaultcount").innerHTML=`<b>${open}</b> OF <b>${FACTS.length}</b> PRODUCTION FILES UNSEALED`;
+}
+
+function renderOrder(){
+  const steps=[
+    {label:"Andor · Season 1",done:state.ep>=12},
+    {label:"Andor · Season 2",done:state.ep>=24},
+    {label:"Rogue One",done:state.movies.r1},
+    {label:"A New Hope",done:state.movies.anh},
+  ];
+  let nowSet=false;
+  $("#orderrow").innerHTML=steps.map((s,i)=>{
+    let cls=s.done?"done":"";
+    if(!s.done&&!nowSet){cls="now";nowSet=true}
+    return `${i?'<span class="order-arrow">→</span>':""}<span class="order-step ${cls}">${s.label}${s.done?" ✓":""}</span>`;
+  }).join("");
+}
+
+function renderClearance(){
+  const seen=Object.keys(state.movies).filter(m=>state.movies[m]).map(m=>MOVIE_NAMES[m]);
+  const fullSeries=state.ep>=24,allFilms=state.movies.rots&&state.movies.r1&&state.movies.anh&&state.movies.rotj;
+  let v;
+  if(!state.everSet)v="NOT SET";
+  else if(fullSeries&&allFilms)v="FULL · SUNRISE SEEN";
+  else if(state.ep===0)v="RECRUIT · NOTHING YET";
+  else v="WATCHED THROUGH "+epLabel(state.ep);
+  $("#ccv").textContent=v;
+  const un=unreadCount();
+  $("#ccsub").innerHTML=state.everSet
+    ?`FILMS: ${seen.length?seen.join(" · "):"NONE MARKED"}<br>ARCHIVE ${declassPct()}% DECLASSIFIED${un?` · <span style="color:var(--green)">${un} UNREAD FILE${un===1?"":"S"}</span>`:""}`
+    :"Set your viewing progress to begin declassification.";
+  $("#shieldstate").textContent=fullSeries&&allFilms?"SPOILER SHIELD: NOT NEEDED — FULL CLEARANCE":"SPOILER SHIELD: ACTIVE";
+  /* rail */
+  $("#railpct").textContent=declassPct()+"%";
+  $("#railbar").style.width=declassPct()+"%";
+  /* next up */
+  const nu=$("#nextup"),txt=$("#nextuptext"),adv=$("#advbtn");
+  if(!state.everSet){nu.hidden=true}
+  else{
+    nu.hidden=false;
+    if(state.ep<24){
+      const next=state.ep+1;
+      txt.innerHTML=`NEXT UP: <b>${epLabel(next)} · “${EP_TITLES[next-1]}”</b>`;
+      adv.hidden=false;adv.dataset.action="ep";
+    }else{
+      const order=["r1","anh","rotj","rots"];
+      const nextM=order.find(m=>!state.movies[m]);
+      if(nextM){
+        txt.innerHTML=`SERIES COMPLETE · NEXT UP: <b>${MOVIE_NAMES[nextM]}</b>`;
+        adv.hidden=false;adv.dataset.action=nextM;
+      }else{
+        txt.innerHTML=`FULL CLEARANCE · <b>THE SUNRISE IS YOURS.</b> “Make it worth it.”`;
+        adv.hidden=true;
+      }
+    }
+  }
+}
+
+function updateCounts(){
+  const un=unreadCount();
+  $("#fabunread").textContent=un>0?un:"";
+  renderClearance();
+}
+
+function renderAll(){
+  renderTimeline();renderRelay();renderChars();renderFacts();renderOrder();renderClearance();updateCounts();
+  ERAS.forEach(e=>{
+    const lk=!unlocked(e.gateTitle);
+    $$(`#eranav a[data-era="${e.id}"], #mnav a[data-era="${e.id}"]`).forEach(a=>a.classList.toggle("locked",lk));
+  });
+  observeEvents();
+}
+
+/* ============================== FILTERS ============================== */
+function applyCatFilter(){
+  $$("#timeline .event").forEach(ev=>{
+    const show=currentCat==="all"?true:currentCat==="new"?ev.dataset.new==="1":ev.dataset.cat===currentCat;
+    ev.classList.toggle("hidden",!show);
+  });
+}
+function applyFateFilter(){
+  $$(".char").forEach(ch=>{
+    ch.classList.toggle("hidden",currentFate!=="all"&&ch.dataset.fate!==currentFate);
+  });
+}
+$$("#hero .chip").forEach(chip=>chip.addEventListener("click",()=>{
+  $$("#hero .chip").forEach(c=>c.classList.remove("on"));chip.classList.add("on");
+  currentCat=chip.dataset.cat;applyCatFilter();
+}));
+$$("#characters .chip").forEach(chip=>chip.addEventListener("click",()=>{
+  $$("#characters .chip").forEach(c=>c.classList.remove("on"));chip.classList.add("on");
+  currentFate=chip.dataset.fate;applyFateFilter();
+}));
+
+/* ============================== INTERACTION ============================== */
+$("#timeline").addEventListener("click",e=>{
+  const card=e.target.closest(".card");if(!card||card.classList.contains("sealedcard"))return;
+  const ev=card.closest(".event");
+  ev.classList.toggle("open");
+  card.setAttribute("aria-expanded",ev.classList.contains("open"));
+  const pip=card.querySelector(".newpip");
+  if(pip){pip.remove();ev.dataset.new="0";markRead("ev-"+ev.dataset.id,1)}
+});
+$("#chargrid").addEventListener("click",e=>{
+  const ch=e.target.closest(".char");if(!ch||ch.classList.contains("sealedchar"))return;
+  const pip=ch.querySelector(".newpip");
+  if(pip){pip.remove();markRead("ch-"+ch.dataset.id,parseInt(ch.dataset.level||"1",10))}
+});
+$("#factgrid").addEventListener("click",e=>{
+  const f=e.target.closest(".fact");if(!f||f.classList.contains("sealedfact"))return;
+  const pip=f.querySelector(".newpip");
+  if(pip){pip.remove();markRead("fx-"+f.dataset.id,1)}
+});
+$("#relaychain").addEventListener("click",e=>{
+  const n=e.target.closest(".node");if(!n||n.classList.contains("sealednode"))return;
+  const pip=n.querySelector(".newpip");
+  if(pip){pip.remove();markRead(n.dataset.id,1)}
+});
+$("#markread").addEventListener("click",()=>{
+  baselineAll();renderAll();toast("ALL FILES MARKED AS READ");
+});
+
+/* toast */
+let toastTimer;
+function toast(html){
+  const t=$("#toast");t.innerHTML=html;t.classList.add("show");
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),4200);
+}
+
+/* ============================== CLEARANCE PANEL ============================== */
+const veil=$("#veil");
+let pending={ep:0,movies:{}};
+function buildPanel(){
+  const s1=$("#s1grid"),s2=$("#s2grid");
+  for(let i=1;i<=12;i++){
+    const b1=document.createElement("button");b1.className="ep";b1.textContent=i;b1.dataset.n=i;
+    s1.appendChild(b1);
+    const b2=document.createElement("button");b2.className="ep";b2.textContent=i;b2.dataset.n=i+12;
+    s2.appendChild(b2);
+  }
+  const row=$("#movierow");
+  MOVIES.forEach(m=>{
+    const b=document.createElement("button");b.className="movie";b.dataset.m=m.id;
+    b.innerHTML=`<span class="box"></span>${m.name} (${m.year})<small>${m.note}</small>`;
+    row.appendChild(b);
+  });
+  veil.addEventListener("click",e=>{
+    const ep=e.target.closest(".ep");
+    if(ep){
+      const n=parseInt(ep.dataset.n,10);
+      pending.ep=(pending.ep===n)?n-1:n;
+      refreshPanel();return;
+    }
+    const mv=e.target.closest(".movie");
+    if(mv){pending.movies[mv.dataset.m]=!pending.movies[mv.dataset.m];refreshPanel();return}
+    if(e.target===veil)closePanel();
+  });
+  $("#zeroep").addEventListener("click",()=>{pending.ep=0;refreshPanel()});
+}
+function refreshPanel(){
+  $$(".ep",veil).forEach(b=>{
+    const n=parseInt(b.dataset.n,10);
+    b.classList.toggle("watched",n<=pending.ep);
+    b.classList.toggle("tip",n===pending.ep);
+    const t=EP_TITLES[n-1];
+    b.title=n<=pending.ep+1?`${epLabel(n)} · “${t}”`:epLabel(n);
+  });
+  $$(".movie",veil).forEach(b=>b.classList.toggle("on",!!pending.movies[b.dataset.m]));
+}
+function openPanel(){
+  pending={ep:state.ep,movies:Object.assign({},state.movies)};
+  refreshPanel();veil.classList.add("show");
+}
+function closePanel(){veil.classList.remove("show")}
+function commit(){
+  const first=!state.everSet;
+  state.ep=pending.ep;state.movies=Object.assign({},pending.movies);state.everSet=true;
+  if(first)baselineAll();
+  persist();renderAll();
+  const un=unreadCount();
+  if(first)toast("CLEARANCE SET · <b>"+declassPct()+"% OF THE ARCHIVE DECLASSIFIED</b>");
+  else if(un>0)toast("◈ <b>"+un+" FILE"+(un===1?"":"S")+" OF NEW INTEL DECLASSIFIED</b> · LOOK FOR THE GREEN MARKERS");
+  else toast("CLEARANCE UPDATED");
+}
+$("#openpanel").addEventListener("click",openPanel);
+$("#shieldfab").addEventListener("click",openPanel);
+$("#closepanel").addEventListener("click",closePanel);
+$("#savepanel").addEventListener("click",()=>{commit();closePanel()});
+$("#resetall").addEventListener("click",()=>{
+  if(confirm("Wipe your saved progress and read-state from this browser?")){
+    localStorage.removeItem(KEY);state=load();closePanel();renderAll();openPanel();
+  }
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&veil.classList.contains("show"))closePanel()});
+$("#advbtn").addEventListener("click",()=>{
+  const a=$("#advbtn").dataset.action;
+  pending={ep:state.ep,movies:Object.assign({},state.movies)};
+  if(a==="ep")pending.ep=Math.min(24,state.ep+1);else pending.movies[a]=true;
+  commit();
+});
+
+/* ============================== AMBIENT ============================== */
+/* stars */
+(function(){
+  const s=$("#stars"),n=110;
+  for(let i=0;i<n;i++){
+    const sp=document.createElement("span");
+    const sz=Math.random()<.85?1:2;
+    sp.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;animation-delay:${(Math.random()*5).toFixed(2)}s;animation-duration:${(3+Math.random()*5).toFixed(2)}s;opacity:${(.1+Math.random()*.4).toFixed(2)}`;
+    s.appendChild(sp);
+  }
+})();
+
+/* era nav (rail + mobile) — built once */
+(function(){
+  const eranav=$("#eranav"),mnav=$("#mnav");
+  ERAS.forEach(e=>{
+    const a=document.createElement("a");
+    a.href="#"+e.id;a.dataset.era=e.id;
+    a.innerHTML=`<span class="dot"></span><span class="tag">${e.nav}</span>`;
+    eranav.appendChild(a);
+    const m=document.createElement("a");
+    m.href="#"+e.id;m.dataset.era=e.id;m.textContent=e.nav;
+    mnav.appendChild(m);
+  });
+})();
+
+/* reveal-on-scroll + scroll-spy (rebound after each render) */
+let revealer=null,spy=null,currentEra=null;
+function observeEvents(){
+  if(revealer)revealer.disconnect();
+  revealer=new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("seen");revealer.unobserve(e.target)}});
+  },{threshold:.12});
+  $$(".event").forEach(e=>revealer.observe(e));
+  if(spy)spy.disconnect();
+  const meter=$("#meter"),meterNum=$("#meter .num"),meterSub=$("#meter .sub"),mmeter=$("#mmeter");
+  spy=new IntersectionObserver(es=>{
+    es.forEach(en=>{
+      if(en.isIntersecting){
+        const id=en.target.id;
+        if(id!==currentEra){
+          currentEra=id;
+          const era=ERAS.find(x=>x.id===id);
+          meterNum.textContent=era.meter;meterSub.textContent=era.sub;
+          mmeter.innerHTML=`${era.meter}<small>${era.sub}</small>`;
+          meter.classList.remove("flick");void meter.offsetWidth;meter.classList.add("flick");
+          if(id==="y1"||id==="r1"||id==="after"){meterNum.style.color=id==="after"?"#F4B75A":(id==="r1"?"var(--ember)":"var(--amber)")}
+          else{meterNum.style.color="var(--amber)"}
+          $$("#eranav a, #mnav a").forEach(a=>a.classList.toggle("active",a.dataset.era===id));
+          const act=$("#mnav a.active");
+          if(act)act.scrollIntoView({block:"nearest",inline:"center",behavior:"smooth"});
+          $("#dawn").classList.toggle("lit",id==="after"||id==="r1");
+        }
+      }
+    });
+  },{rootMargin:"-35% 0px -55% 0px"});
+  ERAS.forEach(e=>{const el=document.getElementById(e.id);if(el)spy.observe(el)});
+}
+
+/* prev / next era buttons */
+function jump(dir){
+  const idx=Math.max(0,ERAS.findIndex(e=>e.id===currentEra));
+  const next=ERAS[Math.min(ERAS.length-1,Math.max(0,idx+dir))];
+  document.getElementById(next.id).scrollIntoView({behavior:"smooth"});
+}
+$("#prevEra").addEventListener("click",()=>jump(-1));
+$("#nextEra").addEventListener("click",()=>jump(1));
+
+/* ============================== BOOT ============================== */
+buildPanel();
+renderAll();
+if(!state.everSet)setTimeout(openPanel,600);
+})();
+</script>
+</body>
+</html>
